@@ -1,0 +1,459 @@
+import { useEffect, useState, useCallback } from "react";
+import { Plus, Trash2, AlertTriangle, X, History, Loader2 } from "lucide-react";
+import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchStockLog } from "../api/products";
+import DataTable, { Badge } from "../components/DataTable";
+import { focusNextOnEnter } from "../utils/formNav";
+import { formatMoney } from "../utils/currency";
+
+const TYPES = ["Lamp", "Wallet", "Pouch", "Decor", "Packaging"];
+
+const emptyForm = {
+  name: "",
+  sku: "",
+  type: "Lamp",
+  retailPrice: "",
+  costPrice: "",
+  currentStock: 0,
+  lowStockAlert: 5,
+  colors: [],
+  stockChangeComment: "",
+};
+
+export default function Inventory({ initialSearch }) {
+  const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState(initialSearch || "");
+  const [type, setType] = useState("");
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [originalStock, setOriginalStock] = useState(0);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [stockError, setStockError] = useState(null);
+
+  // Stock-change history modal
+  const [historyFor, setHistoryFor] = useState(null); // product being viewed, or null
+  const [historyLogs, setHistoryLogs] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const load = useCallback(() => {
+    fetchProducts({ search, type, lowStockOnly: lowStockOnly || undefined }).then(setProducts);
+  }, [search, type, lowStockOnly]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this product? Existing sales referencing it will be orphaned.")) return;
+    await deleteProduct(id);
+    load();
+  };
+
+  const startEdit = (p) => {
+    setEditingId(p._id);
+    setOriginalStock(p.currentStock);
+    setForm({
+      name: p.name,
+      sku: p.sku || "",
+      type: p.type,
+      retailPrice: p.retailPrice,
+      costPrice: p.costPrice || "",
+      currentStock: p.currentStock,
+      lowStockAlert: p.lowStockAlert,
+      colors: p.colors?.length ? p.colors.map((c) => ({ ...c })) : [],
+      stockChangeComment: "",
+    });
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm);
+    setStockError(null);
+  };
+
+  const addColorRow = () => setForm((f) => ({ ...f, colors: [...f.colors, { name: "", stock: 0 }] }));
+  const updateColorRow = (i, key, value) =>
+    setForm((f) => ({
+      ...f,
+      colors: f.colors.map((c, idx) => (idx === i ? { ...c, [key]: value } : c)),
+    }));
+  const removeColorRow = (i) =>
+    setForm((f) => ({ ...f, colors: f.colors.filter((_, idx) => idx !== i) }));
+
+  const hasColors = form.colors.length > 0;
+  const colorStockTotal = form.colors.reduce((s, c) => s + (Number(c.stock) || 0), 0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStockError(null);
+    const newStock = hasColors ? colorStockTotal : Number(form.currentStock);
+
+    if (editingId && newStock !== originalStock && !form.stockChangeComment.trim()) {
+      setStockError("Please explain why you're changing the stock quantity.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        sku: form.sku || undefined,
+        retailPrice: Number(form.retailPrice),
+        costPrice: form.costPrice === "" ? 0 : Number(form.costPrice),
+        currentStock: newStock,
+        lowStockAlert: Number(form.lowStockAlert),
+        colors: form.colors
+          .filter((c) => c.name.trim())
+          .map((c) => ({ name: c.name.trim(), stock: Number(c.stock) || 0 })),
+        stockChangeComment: form.stockChangeComment.trim() || undefined,
+      };
+      if (editingId) {
+        await updateProduct(editingId, payload);
+      } else {
+        await createProduct(payload);
+      }
+      cancelForm();
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openHistory = async (product) => {
+    setHistoryFor(product);
+    setHistoryLoading(true);
+    try {
+      const logs = await fetchStockLog(product._id);
+      setHistoryLogs(logs);
+    } catch {
+      setHistoryLogs([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const columns = [
+    { key: "name", header: "Product" },
+    { key: "sku", header: "SKU", render: (r) => r.sku || "—" },
+    { key: "type", header: "Type", render: (r) => <Badge tone="muted">{r.type}</Badge> },
+    {
+      key: "retailPrice",
+      header: "Retail price",
+      render: (r) => <span className="font-mono tabular">{formatMoney(r.retailPrice)}</span>,
+    },
+    {
+      key: "costPrice",
+      header: "Cost price",
+      render: (r) => (
+        <span className="font-mono tabular text-muted">
+          {r.costPrice ? formatMoney(r.costPrice) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "currentStock",
+      header: "Stock on hand",
+      render: (r) => (
+        <span className={`font-mono tabular ${r.isLowStock ? "text-clay font-medium" : ""}`}>
+          {r.currentStock}
+          {r.isLowStock && <AlertTriangle size={12} className="inline ml-1.5 -mt-0.5" />}
+        </span>
+      ),
+    },
+    {
+      key: "colors",
+      header: "Colours",
+      render: (r) =>
+        r.colors?.length ? (
+          <span className="text-xs text-muted">
+            {r.colors.map((c) => `${c.name} (${c.stock})`).join(", ")}
+          </span>
+        ) : (
+          "—"
+        ),
+    },
+    { key: "lowStockAlert", header: "Reorder at" },
+    {
+      key: "value",
+      header: "Asset value",
+      render: (r) => (
+        <span className="font-mono tabular text-muted">
+          {formatMoney(r.currentStock * r.retailPrice)}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (r) => (
+        <div className="flex items-center gap-3">
+          <button onClick={() => startEdit(r)} className="text-xs text-muted hover:text-moss-dark">
+            Edit
+          </button>
+          <button onClick={() => openHistory(r)} className="text-muted hover:text-ink" title="Stock change history">
+            <History size={14} />
+          </button>
+          <button onClick={() => handleDelete(r._id)} className="text-muted hover:text-clay">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-xl sm:text-2xl text-ink">Inventory</h1>
+          <p className="text-sm text-muted mt-1">
+            Stock is deducted as soon as a sales order is placed (through Packed, Delivered, and
+            Damaged — restored on Returned) and added once an inventory expense is marked
+            Delivered.
+          </p>
+        </div>
+        <button
+          onClick={() => (showForm ? cancelForm() : setShowForm(true))}
+          className="flex items-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
+        >
+          {showForm ? <X size={15} /> : <Plus size={15} />}
+          {showForm ? "Cancel" : "New product"}
+        </button>
+      </div>
+
+      {showForm && (
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={focusNextOnEnter}
+          className="bg-card border border-line rounded-lg p-5 space-y-3"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <input
+              required
+              placeholder="Product name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <input
+              placeholder="SKU (optional)"
+              value={form.sku}
+              onChange={(e) => setForm({ ...form, sku: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            >
+              {TYPES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+            <input
+              required
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Retail price"
+              value={form.retailPrice}
+              onChange={(e) => setForm({ ...form, retailPrice: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Cost price (for P&L)"
+              value={form.costPrice}
+              onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <input
+              type="number"
+              min="0"
+              placeholder="Low stock alert threshold"
+              value={form.lowStockAlert}
+              onChange={(e) => setForm({ ...form, lowStockAlert: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <input
+              type="number"
+              min="0"
+              placeholder="Starting stock"
+              disabled={hasColors}
+              value={hasColors ? colorStockTotal : form.currentStock}
+              onChange={(e) => setForm({ ...form, currentStock: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line disabled:opacity-50"
+            />
+          </div>
+
+          {editingId && (
+            <div>
+              <input
+                placeholder="Reason for stock change (required if you adjust the quantity)"
+                value={form.stockChangeComment}
+                onChange={(e) => {
+                  setForm({ ...form, stockChangeComment: e.target.value });
+                  if (stockError) setStockError(null);
+                }}
+                className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              />
+              {stockError && <p className="text-xs text-clay mt-1">{stockError}</p>}
+            </div>
+          )}
+
+          <div className="border-t border-line pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs uppercase tracking-wide text-muted">
+                Colour variants (optional — stock is tracked per colour when set)
+              </p>
+              <button
+                type="button"
+                onClick={addColorRow}
+                className="text-xs text-moss-dark hover:underline"
+              >
+                + Add colour
+              </button>
+            </div>
+            {form.colors.length === 0 ? (
+              <p className="text-xs text-muted">No colour variants — this product uses a single stock count.</p>
+            ) : (
+              <div className="space-y-2">
+                {form.colors.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      placeholder="Colour name (e.g. Black)"
+                      value={c.name}
+                      onChange={(e) => updateColorRow(i, "name", e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-sm bg-paper rounded-md border border-line"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Stock"
+                      value={c.stock}
+                      onChange={(e) => updateColorRow(i, "stock", e.target.value)}
+                      className="w-28 px-3 py-1.5 text-sm bg-paper rounded-md border border-line"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeColorRow(i)}
+                      className="text-muted hover:text-clay"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            disabled={saving}
+            className="bg-moss text-white text-sm rounded-md py-2 px-6 hover:bg-moss-dark disabled:opacity-50"
+          >
+            {saving ? "Saving…" : editingId ? "Update product" : "Save product"}
+          </button>
+        </form>
+      )}
+
+      <DataTable
+        columns={columns}
+        rows={products}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search name or SKU…"
+        filters={
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+            >
+              <option value="">All types</option>
+              {TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <label className="flex items-center gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                checked={lowStockOnly}
+                onChange={(e) => setLowStockOnly(e.target.checked)}
+                className="accent-clay"
+              />
+              Low stock only
+            </label>
+          </div>
+        }
+        page={1}
+        pages={1}
+        onPageChange={() => {}}
+        emptyLabel="No products match your filters."
+      />
+
+      {historyFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/40 px-0 sm:px-4"
+          onClick={() => setHistoryFor(null)}
+        >
+          <div
+            className="bg-card w-full sm:max-w-lg sm:rounded-lg rounded-t-lg border border-line max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+              <div>
+                <p className="font-display text-lg text-ink">Stock change history</p>
+                <p className="text-xs text-muted mt-0.5">{historyFor.name}</p>
+              </div>
+              <button onClick={() => setHistoryFor(null)} className="text-muted hover:text-ink">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4">
+              {historyLoading ? (
+                <p className="text-sm text-muted flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Loading…
+                </p>
+              ) : historyLogs.length === 0 ? (
+                <p className="text-sm text-muted">No manual stock changes logged yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {historyLogs.map((log) => (
+                    <div key={log._id} className="border-b border-line pb-3 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-mono tabular text-ink">
+                          {log.previousStock} → {log.newStock}
+                        </span>
+                        <span
+                          className={`font-mono text-xs font-medium ${
+                            log.delta >= 0 ? "text-moss-dark" : "text-clay"
+                          }`}
+                        >
+                          {log.delta >= 0 ? `+${log.delta}` : log.delta}
+                        </span>
+                      </div>
+                      <p className="text-sm text-ink mt-1">{log.comment}</p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
