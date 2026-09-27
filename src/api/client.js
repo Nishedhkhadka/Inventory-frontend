@@ -6,8 +6,14 @@ export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ||
+  (window.location.hostname.endsWith("vercel.app")
+    ? "https://inventory-backend-1-b0zf.onrender.com/api"
+    : "/api");
+
 const client = axios.create({
-  baseURL: "/api",
+  baseURL: apiBaseUrl,
   headers: { "Content-Type": "application/json" },
 });
 
