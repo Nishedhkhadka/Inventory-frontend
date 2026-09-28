@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import SearchModal from "./components/SearchModal";
+import DoubleBounce from "./components/DoubleBounce";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
@@ -45,7 +46,7 @@ function AppShell() {
       setIntent({ term, opts });
       setNavCounter((c) => c + 1);
     },
-    [isAdmin]
+    [isAdmin],
   );
 
   useEffect(() => {
@@ -74,7 +75,10 @@ function AppShell() {
       />
 
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-ink/40 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-ink/40 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       <main className="flex-1 min-w-0 px-4 sm:px-6 md:px-8 py-5 md:py-8 max-w-[1400px]">
@@ -92,7 +96,11 @@ function AppShell() {
           openFormOnLoad={intent.opts?.openForm}
         />
       </main>
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={handleNavigate} />
+      <SearchModal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onNavigate={handleNavigate}
+      />
     </div>
   );
 }
@@ -101,7 +109,14 @@ function Gate() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-paper text-sm text-muted">Loading…</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-paper">
+        <div className="flex flex-col items-center gap-4">
+          <DoubleBounce size="xl" />
+          <p className="text-sm text-muted">Loading…</p>
+        </div>
+      </div>
+    );
   }
 
   return user ? <AppShell /> : <Login />;
