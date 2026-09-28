@@ -113,7 +113,7 @@ function Gate() {
       <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="flex flex-col items-center gap-4">
           <DoubleBounce size="xl" />
-          <p className="text-sm text-muted">Loading…</p>
+          
         </div>
       </div>
     );
