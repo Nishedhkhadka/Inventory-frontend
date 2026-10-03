@@ -1,4 +1,17 @@
-import { LayoutGrid, Receipt, Package, Wallet, UploadCloud, PackageCheck, Users as UsersIcon, LogOut, X } from "lucide-react";
+import {
+  LayoutGrid,
+  Receipt,
+  Package,
+  Wallet,
+  UploadCloud,
+  PackageCheck,
+  Users as UsersIcon,
+  Building2,
+  LogOut,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { DEFAULT_BUSINESS_PROFILE, getBusinessProfile } from "../utils/billing";
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -6,13 +19,28 @@ const NAV_ITEMS = [
   { key: "packaging", label: "Packaging", icon: PackageCheck },
   { key: "expenses", label: "Expenses", icon: Wallet },
   { key: "inventory", label: "Inventory", icon: Package },
+  { key: "contacts", label: "Contacts", icon: Building2 },
   { key: "import", label: "Import data", icon: UploadCloud },
 ];
 
 // On desktop (md+) this sits statically in the flex row. On mobile it's a
 // fixed off-canvas drawer that slides in from the left, with a dimmed
 // backdrop behind it (rendered by App.jsx) to close on outside-tap.
-export default function Sidebar({ active, onNavigate, open, onClose, isAdmin, username, onLogout }) {
+export default function Sidebar({
+  active,
+  onNavigate,
+  open,
+  onClose,
+  isAdmin,
+  username,
+  onLogout,
+}) {
+  const [profile, setProfile] = useState(DEFAULT_BUSINESS_PROFILE);
+
+  useEffect(() => {
+    setProfile(getBusinessProfile());
+  }, []);
+
   const items = isAdmin
     ? [...NAV_ITEMS, { key: "users", label: "Users", icon: UsersIcon }]
     : NAV_ITEMS;
@@ -26,9 +54,14 @@ export default function Sidebar({ active, onNavigate, open, onClose, isAdmin, us
       <div className="px-6 py-7 flex items-center justify-between">
         <div>
           <p className="font-display text-2xl tracking-tight text-ink">Zeno</p>
-          <p className="text-xs text-muted mt-0.5 tracking-wide uppercase">Ledger</p>
+          <p className="text-xs text-muted mt-0.5 tracking-wide uppercase">
+            Ledger
+          </p>
         </div>
-        <button onClick={onClose} className="md:hidden text-muted hover:text-ink">
+        <button
+          onClick={onClose}
+          className="md:hidden text-muted hover:text-ink"
+        >
           <X size={18} />
         </button>
       </div>
@@ -61,8 +94,15 @@ export default function Sidebar({ active, onNavigate, open, onClose, isAdmin, us
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm text-ink truncate">{username}</p>
-              <p className="text-xs text-muted capitalize">{isAdmin ? "admin" : "user"}</p>
+              <p className="text-xs text-muted capitalize">
+                {isAdmin ? "admin" : "user"}
+              </p>
             </div>
+            <img
+              src={profile.logoUrl || DEFAULT_BUSINESS_PROFILE.logoUrl}
+              alt="Business logo"
+              className="w-8 h-8 inline-block rounded-md object-cover border border-line"
+            />
             <button
               onClick={onLogout}
               className="text-muted hover:text-clay shrink-0"
@@ -72,7 +112,10 @@ export default function Sidebar({ active, onNavigate, open, onClose, isAdmin, us
             </button>
           </div>
         )}
-        <p className="text-xs text-muted leading-relaxed">Wallets · Lamps · Pouches · Decor</p>
+
+        <p className="text-xs text-muted leading-relaxed">
+          Simply Minimal . Simply Modern .
+        </p>
       </div>
     </aside>
   );

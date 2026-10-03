@@ -11,6 +11,7 @@ import {
   deletePurchaseCategory,
 } from "../api/purchases";
 import { fetchProducts } from "../api/products";
+import { fetchContacts } from "../api/contacts";
 import DataTable, { Badge } from "../components/DataTable";
 import { focusNextOnEnter } from "../utils/formNav";
 import { formatDate, todayStr } from "../utils/dateFmt";
@@ -52,6 +53,7 @@ export default function Expenses({ initialSearch }) {
   const [purchases, setPurchases] = useState([]);
   const [products, setProducts] = useState([]);
   const [allTags, setAllTags] = useState([]);
+  const [supplierOptions, setSupplierOptions] = useState([]);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -86,6 +88,9 @@ export default function Expenses({ initialSearch }) {
     fetchProducts().then(setProducts);
     fetchPurchaseTags().then(setAllTags);
     fetchPurchaseCategories().then(setCategories);
+    fetchContacts().then((rows) =>
+      setSupplierOptions(rows.map((contact) => contact.name).filter(Boolean)),
+    );
   }, []);
 
   const selectedProduct = useMemo(
@@ -529,12 +534,20 @@ export default function Expenses({ initialSearch }) {
             </select>
           )}
 
-          <input
-            placeholder="Supplier"
-            value={form.supplier}
-            onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
-          />
+          <>
+            <input
+              list="supplier-options"
+              placeholder="Supplier"
+              value={form.supplier}
+              onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <datalist id="supplier-options">
+              {supplierOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </>
           <input
             type="number"
             min="0"

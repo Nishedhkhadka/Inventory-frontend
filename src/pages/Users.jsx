@@ -1,7 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, KeyRound, X, Loader2 } from "lucide-react";
-import { fetchUsers, createUser, deleteUser, resetUserPassword } from "../api/auth";
+import { Plus, Trash2, KeyRound, X, Loader2, Check } from "lucide-react";
+import {
+  fetchUsers,
+  createUser,
+  deleteUser,
+  resetUserPassword,
+} from "../api/auth";
 import { useAuth } from "../context/AuthContext";
+import {
+  DEFAULT_BUSINESS_PROFILE,
+  getBusinessProfile,
+  saveBusinessProfile,
+} from "../utils/billing";
 
 const emptyForm = { username: "", password: "", role: "user" };
 
@@ -14,13 +24,20 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [resettingId, setResettingId] = useState(null);
   const [newPassword, setNewPassword] = useState("");
+  const [profile, setProfile] = useState(DEFAULT_BUSINESS_PROFILE);
 
   const load = useCallback(() => {
     fetchUsers().then(setUsers);
   }, []);
 
+  const saveProfile = (event) => {
+    event.preventDefault();
+    saveBusinessProfile(profile);
+  };
+
   useEffect(() => {
     load();
+    setProfile(getBusinessProfile());
   }, [load]);
 
   const handleSubmit = async (e) => {
@@ -61,8 +78,8 @@ export default function Users() {
         <div>
           <h1 className="font-display text-xl sm:text-2xl text-ink">Users</h1>
           <p className="text-sm text-muted mt-1">
-            Admins see every dashboard metric and can manage users. Regular users get a simplified
-            dashboard with no financial figures.
+            Admins see every dashboard metric and can manage users. Regular
+            users get a simplified dashboard with no financial figures.
           </p>
         </div>
         <button
@@ -75,7 +92,10 @@ export default function Users() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-card border border-line rounded-lg p-5 space-y-3">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-card border border-line rounded-lg p-5 space-y-3"
+        >
           <input
             required
             placeholder="Username"
@@ -96,7 +116,9 @@ export default function Users() {
             onChange={(e) => setForm({ ...form, role: e.target.value })}
             className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
           >
-            <option value="user">User — simplified dashboard, no financial figures</option>
+            <option value="user">
+              User — simplified dashboard, no financial figures
+            </option>
             <option value="admin">Admin — full access, can manage users</option>
           </select>
           {error && <p className="text-sm text-clay">{error}</p>}
@@ -109,13 +131,102 @@ export default function Users() {
         </form>
       )}
 
+      <form
+        onSubmit={saveProfile}
+        className="bg-card border border-line rounded-lg p-5 space-y-3"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-display text-lg text-ink">Billing details</h2>
+        </div>
+        <input
+          value={profile.companyName || ""}
+          onChange={(event) =>
+            setProfile((current) => ({
+              ...current,
+              companyName: event.target.value,
+            }))
+          }
+          placeholder="Company name"
+          className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+        />
+        <input
+          value={profile.logoUrl || ""}
+          onChange={(event) =>
+            setProfile((current) => ({
+              ...current,
+              logoUrl: event.target.value,
+            }))
+          }
+          placeholder="Logo URL"
+          className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+        />
+        <input
+          value={profile.phone || ""}
+          onChange={(event) =>
+            setProfile((current) => ({ ...current, phone: event.target.value }))
+          }
+          placeholder="Phone"
+          className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+        />
+        <input
+          value={profile.panNo || ""}
+          onChange={(event) =>
+            setProfile((current) => ({ ...current, panNo: event.target.value }))
+          }
+          placeholder="PAN no"
+          className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+        />
+        <input
+          value={profile.email || ""}
+          onChange={(event) =>
+            setProfile((current) => ({ ...current, email: event.target.value }))
+          }
+          placeholder="Email"
+          className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+        />
+        <input
+          value={profile.website || ""}
+          onChange={(event) =>
+            setProfile((current) => ({
+              ...current,
+              website: event.target.value,
+            }))
+          }
+          placeholder="Website"
+          className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+        />
+        <textarea
+          value={profile.address || ""}
+          onChange={(event) =>
+            setProfile((current) => ({
+              ...current,
+              address: event.target.value,
+            }))
+          }
+          placeholder="Address"
+          rows={3}
+          className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line resize-none"
+        />
+        <button
+          type="submit"
+          className="inline-flex items-center gap-1.5 bg-moss text-white text-sm rounded-md px-3 py-2"
+        >
+          <Check size={14} /> Save bill details
+        </button>
+      </form>
+
       <div className="bg-card border border-line rounded-lg divide-y divide-line">
         {users.map((u) => (
-          <div key={u.id} className="px-5 py-3 flex items-center justify-between gap-3">
+          <div
+            key={u.id}
+            className="px-5 py-3 flex items-center justify-between gap-3"
+          >
             <div>
               <p className="text-sm text-ink font-medium">
                 {u.username}
-                {u.id === currentUser?.id && <span className="text-muted font-normal"> (you)</span>}
+                {u.id === currentUser?.id && (
+                  <span className="text-muted font-normal"> (you)</span>
+                )}
               </p>
               <p className="text-xs text-muted capitalize">{u.role}</p>
             </div>
@@ -156,7 +267,11 @@ export default function Users() {
                   <KeyRound size={14} />
                 </button>
                 {u.id !== currentUser?.id && (
-                  <button onClick={() => handleDelete(u)} className="text-muted hover:text-clay" title="Delete user">
+                  <button
+                    onClick={() => handleDelete(u)}
+                    className="text-muted hover:text-clay"
+                    title="Delete user"
+                  >
                     <Trash2 size={14} />
                   </button>
                 )}

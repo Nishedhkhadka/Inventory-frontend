@@ -2,13 +2,14 @@ import { Search, Plus, Menu } from "lucide-react";
 import StatusPulse from "./StatusPulse";
 
 const TITLES = {
-  dashboard: "Dashboard",
-  sales: "Sales orders",
-  packaging: "Packaging",
-  expenses: "Expenses",
-  inventory: "Inventory",
-  import: "Import data",
-  users: "Users",
+  dashboard: "",
+  sales: "",
+  packaging: "",
+  expenses: "",
+  inventory: "",
+  contacts: "",
+  import: "",
+  users: "",
 };
 
 export default function Header({ view, onNavigate, onOpenSearch, onOpenMenu }) {

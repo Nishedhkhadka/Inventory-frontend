@@ -6,7 +6,8 @@ import client from "../api/client";
 // that authenticated client as a blob, then triggers the browser's normal
 // save behavior via a temporary object URL.
 export async function downloadFile(path, filename) {
-  const res = await client.get(path, { responseType: "blob" });
+  const cacheBust = `${path}${path.includes("?") ? "&" : "?"}_=${Date.now()}`;
+  const res = await client.get(cacheBust, { responseType: "blob" });
 
   // Prefer the filename the server actually sent (Content-Disposition),
   // falling back to the caller's guess.

@@ -12,12 +12,14 @@ import Inventory from "./pages/Inventory";
 import Import from "./pages/Import";
 import Packaging from "./pages/Packaging";
 import Users from "./pages/Users";
+import Contacts from "./pages/Contacts";
 
 const PAGES = {
   dashboard: Dashboard,
   sales: Sales,
   expenses: Expenses,
   inventory: Inventory,
+  contacts: Contacts,
   import: Import,
   packaging: Packaging,
   users: Users,
@@ -113,7 +115,6 @@ function Gate() {
       <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="flex flex-col items-center gap-4">
           <DoubleBounce size="xl" />
-          
         </div>
       </div>
     );

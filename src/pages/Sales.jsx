@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Trash2, Pencil, X, FileDown } from "lucide-react";
+import { Plus, Trash2, Pencil, X, FileDown, Printer } from "lucide-react";
 import {
   fetchSales,
   createSale,
@@ -11,7 +11,8 @@ import { fetchProducts } from "../api/products";
 import DataTable from "../components/DataTable";
 import { focusNextOnEnter } from "../utils/formNav";
 import { formatDate, todayStr } from "../utils/dateFmt";
-import { formatMoney } from "../utils/currency";
+import { formatMoney, formatMoneyText } from "../utils/currency";
+import { getBusinessProfile } from "../utils/billing";
 
 // Tone mappings using light background and dark text palette
 const STATUS_TONE = {
@@ -50,6 +51,7 @@ const DELIVERY_PARTNER_DEFAULTS = ["PD", "ID", "YG", "Nabil", "Pathao", "RedX"];
 
 const makeEmptyOrderForm = () => ({
   orderId: "",
+  billNo: "",
   status: "In progress",
   paidStatus: "COD",
   pointOfContact: "",
@@ -149,6 +151,10 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       map.get(key).push(sale);
     }
     return Array.from(map.entries()).map(([key, groupLines]) => {
+      const primary =
+        groupLines.find((l) => l.billNo) ||
+        groupLines.find((l) => l.pointOfContact) ||
+        groupLines[0];
       const deliveryLine =
         groupLines.find(
           (l) =>
@@ -158,7 +164,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         groupLines[0];
       return {
         key,
-        primary: groupLines[0],
+        primary,
         deliveryLine,
         lines: groupLines,
         lineTotal: groupLines.reduce((sum, l) => sum + (l.lineTotal || 0), 0),
@@ -242,13 +248,175 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     load();
   };
 
+  const printInvoice = (group) => {
+    const profile = getBusinessProfile();
+    const billSource = group.lines.find((line) => line.billNo) || group.primary;
+    const invoiceDate = formatDate(group.primary.orderDate || todayStr());
+    const subtotalValue = group.lines.reduce(
+      (sum, line) =>
+        sum + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
+      0,
+    );
+    const discountedSubtotal = group.lines.reduce(
+      (sum, line) => sum + (Number(line.lineTotal) || 0),
+      0,
+    );
+    const discountValue = Math.max(0, subtotalValue - discountedSubtotal);
+    const grandTotalValue = Math.max(0, discountedSubtotal);
+    const billNo = String(billSource.billNo || "BILL").trim() || "BILL";
+
+    const rows = group.lines
+      .map((line, idx) => {
+        const lineAmount =
+          (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0);
+        return `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${line.product?.name || "Product"}${
+              line.color ? ` (${line.color})` : ""
+            }</td>
+            <td>${Number(line.quantity) || 0}</td>
+            <td>${formatMoneyText(Number(line.unitPrice) || 0)}</td>
+            <td>${formatMoneyText(lineAmount)}</td>
+          </tr>`;
+      })
+      .join("");
+
+    const addressLines = (profile.address || "")
+      .split(/\n|,/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("<br />");
+
+    const printableHtml = `<!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice - ${baseOrderId(group.primary.orderId) || "Order"}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #1f2937; margin: 24px; }
+            .invoice { max-width: 900px; margin: 0 auto; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #d1d5db; padding-bottom: 20px; margin-bottom: 20px; }
+            .brand { display: flex; align-items: center; gap: 12px; }
+            .brand img { width: 58px; height: 58px; object-fit: cover; border-radius: 10px; border: 1px solid #e5e7eb; }
+            .brand h1 { margin: 0; font-size: 28px; }
+            .brand p { margin: 3px 0 0; color: #6b7280; }
+            .meta { text-align: right; }
+            .meta strong { display: block; margin-bottom: 6px; font-size: 18px; }
+            .meta span { display: block; color: #4b5563; margin-bottom: 2px; }
+            .details { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
+            .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; }
+            .card h3 { margin: 0 0 8px; font-size: 13px; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
+            .card p { margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { border-bottom: 1px solid #e5e7eb; padding: 10px 8px; text-align: left; }
+            th { background: #f3f4f6; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #4b5563; }
+            .totals { margin-top: 18px; width: 320px; margin-left: auto; }
+            .totals-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+            .totals-row.total { font-weight: 700; font-size: 18px; }
+            @media print { body { margin: 0; } .invoice { max-width: 100%; } }
+          </style>
+        </head>
+        <body>
+          <div class="invoice">
+            <div class="header">
+              <div class="brand">
+                ${profile.logoUrl ? `<img src="${profile.logoUrl}" alt="Brand logo" />` : ""}
+                <div>
+                  <h1>${profile.companyName || "Zeno"}</h1>
+                  <p>${profile.website || ""}</p>
+                </div>
+              </div>
+              <div class="meta">
+                <strong>Invoice</strong>
+                <span>Order: ${baseOrderId(group.primary.orderId) || "—"}</span>
+                <span>Bill no: ${billNo}</span>
+                <span>Date: ${invoiceDate}</span>
+              </div>
+            </div>
+
+            <div class="details">
+              <div class="card">
+                <h3>Company</h3>
+                <p><strong>${profile.companyName || "Zeno"}</strong></p>
+                ${addressLines ? `<p>${addressLines}</p>` : ""}
+                ${profile.phone ? `<p>Phone: ${profile.phone}</p>` : ""}
+                ${profile.panNo ? `<p>PAN: ${profile.panNo}</p>` : ""}
+                ${profile.email ? `<p>Email: ${profile.email}</p>` : ""}
+                ${profile.website ? `<p>Website: ${profile.website}</p>` : ""}
+              </div>
+              <div class="card">
+                <h3>Customer</h3>
+                <p><strong>${group.primary.pointOfContact || "Walk-in customer"}</strong></p>
+                ${group.primary.customerPhone ? `<p>Phone: ${group.primary.customerPhone}</p>` : ""}
+                ${group.primary.notes ? `<p>Notes: ${group.primary.notes}</p>` : ""}
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Unit price</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+
+            <div class="totals">
+              <div class="totals-row"><span>Subtotal</span><span>${formatMoneyText(subtotalValue)}</span></div>
+              ${discountValue ? `<div class="totals-row"><span>Discount</span><span>-${formatMoneyText(discountValue)}</span></div>` : ""}
+              <div class="totals-row total"><span>Total</span><span>${formatMoneyText(grandTotalValue)}</span></div>
+            </div>
+
+            <p style="margin-top: 28px; color: #4b5563;">${profile.invoiceNote || "Thank you for your business."}</p>
+          </div>
+        </body>
+      </html>`;
+
+    const invoiceBlob = new Blob([printableHtml], { type: "text/html" });
+    const invoiceUrl = URL.createObjectURL(invoiceBlob);
+    const invoiceWindow = window.open(
+      invoiceUrl,
+      "_blank",
+      "width=900,height=1000,noopener,noreferrer",
+    );
+
+    if (!invoiceWindow) {
+      URL.revokeObjectURL(invoiceUrl);
+      alert("Please allow pop-ups to print the invoice.");
+      return;
+    }
+
+    setTimeout(() => {
+      try {
+        invoiceWindow.focus();
+        invoiceWindow.print();
+      } catch {
+        alert("Print preview was blocked. Please retry with pop-ups enabled.");
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(invoiceUrl), 1000);
+      }
+    }, 250);
+  };
+
   const startEdit = (group) => {
     setEditingGroup(group);
     setOrderDiscount("");
+    const billSource = group.lines.find((line) => line.billNo) || group.primary;
     setOrderForm({
       orderId: baseOrderId(group.primary.orderId),
+      billNo: billSource.billNo || "",
       status: group.primary.status,
       paidStatus: group.primary.paidStatus,
+      pointOfContact: group.primary.pointOfContact || "",
+      customerPhone: group.primary.customerPhone || "",
+      orderDate: group.primary.orderDate || todayStr(),
+      notes: group.primary.notes || "",
       deliveryPartner: group.deliveryLine?.deliveryPartner || "",
       deliveryFeeCharged:
         group.deliveryLine?.deliveryFeeCharged === null ||
@@ -320,6 +488,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     setSaving(true);
     try {
       const shared = {
+        billNo: (orderForm.billNo || "").trim() || undefined,
         status: orderForm.status,
         paidStatus: orderForm.paidStatus,
         pointOfContact: orderForm.pointOfContact,
@@ -368,6 +537,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           const lineOrderId = i === 0 ? baseId : `${baseId}-line-${i + 1}`;
           const linePayload = {
             ...shared,
+            billNo: shared.billNo,
             orderId: lineOrderId,
             product: line.product,
             color: line.color || undefined,
@@ -400,6 +570,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         const linePromises = lines.map((line, i) => {
           const linePayload = {
             ...shared,
+            billNo: shared.billNo,
             orderId: i === 0 ? baseId : `${baseId}-line-${i + 1}`,
             product: line.product,
             color: line.color || undefined,
@@ -448,6 +619,11 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       key: "order",
       header: "Order ID",
       render: (r) => baseOrderId(r.primary.orderId) || "—",
+    },
+    {
+      key: "billNo",
+      header: "Bill no",
+      render: (r) => r.primary.billNo || "—",
     },
     {
       key: "customer",
@@ -557,14 +733,23 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       render: (r) => (
         <div className="flex gap-2">
           <button
+            onClick={() => printInvoice(r)}
+            className="text-muted hover:text-ink"
+            title="Print invoice"
+          >
+            <Printer size={15} />
+          </button>
+          <button
             onClick={() => startEdit(r)}
             className="text-muted hover:text-green-700"
+            title="Edit order"
           >
             <Pencil size={15} />
           </button>
           <button
             onClick={() => handleDelete(r)}
             className="text-muted hover:text-red-700"
+            title="Delete order"
           >
             <Trash2 size={15} />
           </button>
@@ -623,6 +808,14 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
               value={orderForm.orderId}
               onChange={(e) =>
                 setOrderForm({ ...orderForm, orderId: e.target.value })
+              }
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <input
+              placeholder="Bill no"
+              value={orderForm.billNo}
+              onChange={(e) =>
+                setOrderForm({ ...orderForm, billNo: e.target.value })
               }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
