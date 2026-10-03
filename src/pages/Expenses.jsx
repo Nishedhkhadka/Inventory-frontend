@@ -22,7 +22,13 @@ const STATUSES = ["Ordered", "Delivered"];
 // Starting point only — the real list comes from the backend (baseline +
 // whatever custom categories are already in use) and can grow from the
 // form itself via "+ Add new category".
-const DEFAULT_CATEGORIES = ["Inventory", "Meta Ads", "Packaging", "Shipping", "Miscellaneous"];
+const DEFAULT_CATEGORIES = [
+  "Inventory",
+  "Meta Ads",
+  "Packaging",
+  "Shipping",
+  "Miscellaneous",
+];
 const ADD_CATEGORY_OPTION = "__add_new__";
 
 const makeEmptyForm = () => ({
@@ -63,10 +69,12 @@ export default function Expenses({ initialSearch }) {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
-    fetchPurchases({ search, status, category, tag, page, limit: 10 }).then((res) => {
-      setPurchases(res.data);
-      setPages(res.pages || 1);
-    });
+    fetchPurchases({ search, status, category, tag, page, limit: 10 }).then(
+      (res) => {
+        setPurchases(res.data);
+        setPages(res.pages || 1);
+      },
+    );
   }, [search, status, category, tag, page]);
 
   useEffect(() => {
@@ -81,7 +89,7 @@ export default function Expenses({ initialSearch }) {
 
   const selectedProduct = useMemo(
     () => products.find((p) => p._id === form.product),
-    [products, form.product]
+    [products, form.product],
   );
 
   const isInventory = form.category === "Inventory";
@@ -120,7 +128,9 @@ export default function Expenses({ initialSearch }) {
       setAddingCategory(false);
       return;
     }
-    setCategories((prev) => (prev.includes(name) ? prev : [...prev, name].sort()));
+    setCategories((prev) =>
+      prev.includes(name) ? prev : [...prev, name].sort(),
+    );
     handleCategoryChange(name);
     setAddingCategory(false);
     setNewCategoryName("");
@@ -128,12 +138,19 @@ export default function Expenses({ initialSearch }) {
 
   const addColorLine = () => {
     const used = new Set([form.color, ...extraColorLines.map((l) => l.color)]);
-    const nextColor = selectedProduct?.colors?.find((c) => !used.has(c.name))?.name || "";
-    setExtraColorLines((lines) => [...lines, { color: nextColor, quantity: "", cost: "" }]);
+    const nextColor =
+      selectedProduct?.colors?.find((c) => !used.has(c.name))?.name || "";
+    setExtraColorLines((lines) => [
+      ...lines,
+      { color: nextColor, quantity: "", cost: "" },
+    ]);
   };
   const updateColorLine = (i, key, value) =>
-    setExtraColorLines((lines) => lines.map((l, idx) => (idx === i ? { ...l, [key]: value } : l)));
-  const removeColorLine = (i) => setExtraColorLines((lines) => lines.filter((_, idx) => idx !== i));
+    setExtraColorLines((lines) =>
+      lines.map((l, idx) => (idx === i ? { ...l, [key]: value } : l)),
+    );
+  const removeColorLine = (i) =>
+    setExtraColorLines((lines) => lines.filter((_, idx) => idx !== i));
 
   const handleStatusChange = async (purchase, newStatus) => {
     await updatePurchase(purchase._id, { status: newStatus });
@@ -141,7 +158,12 @@ export default function Expenses({ initialSearch }) {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this expense record? This will reverse any stock it added.")) return;
+    if (
+      !confirm(
+        "Delete this expense record? This will reverse any stock it added.",
+      )
+    )
+      return;
     await deletePurchase(id);
     load();
   };
@@ -201,27 +223,37 @@ export default function Expenses({ initialSearch }) {
       if (editingId || !hasColorVariants || extraColorLines.length === 0) {
         // Single line: either editing (always one document), or a
         // non-colour / single-colour purchase.
-        await (editingId ? updatePurchase(editingId, {
-          ...shared,
-          product: isInventory && form.product ? form.product : undefined,
-          color: isInventory && form.color ? form.color : undefined,
-          quantity: form.quantity ? Number(form.quantity) : undefined,
-          cost: Number(form.cost),
-        }) : createPurchase({
-          ...shared,
-          product: isInventory && form.product ? form.product : undefined,
-          color: isInventory && form.color ? form.color : undefined,
-          quantity: form.quantity ? Number(form.quantity) : undefined,
-          cost: Number(form.cost),
-        }));
+        await (editingId
+          ? updatePurchase(editingId, {
+              ...shared,
+              product: isInventory && form.product ? form.product : undefined,
+              color: isInventory && form.color ? form.color : undefined,
+              quantity: form.quantity ? Number(form.quantity) : undefined,
+              cost: Number(form.cost),
+            })
+          : createPurchase({
+              ...shared,
+              product: isInventory && form.product ? form.product : undefined,
+              color: isInventory && form.color ? form.color : undefined,
+              quantity: form.quantity ? Number(form.quantity) : undefined,
+              cost: Number(form.cost),
+            }));
       } else {
         // Multi-colour procurement: one Purchase document per colour line,
         // each with its own quantity and cost, sharing everything else.
         const lines = [
-          { color: form.color, quantity: form.quantity ? Number(form.quantity) : undefined, cost: Number(form.cost) },
+          {
+            color: form.color,
+            quantity: form.quantity ? Number(form.quantity) : undefined,
+            cost: Number(form.cost),
+          },
           ...extraColorLines
             .filter((l) => l.color && l.quantity && l.cost)
-            .map((l) => ({ color: l.color, quantity: Number(l.quantity), cost: Number(l.cost) })),
+            .map((l) => ({
+              color: l.color,
+              quantity: Number(l.quantity),
+              cost: Number(l.cost),
+            })),
         ];
         for (const line of lines) {
           await createPurchase({ ...shared, product: form.product, ...line });
@@ -241,6 +273,11 @@ export default function Expenses({ initialSearch }) {
 
   const columns = [
     {
+      key: "orderDate",
+      header: "Ordered",
+      render: (r) => formatDate(r.orderDate),
+    },
+    {
       key: "productName",
       header: "Item",
       render: (r) => (
@@ -255,9 +292,15 @@ export default function Expenses({ initialSearch }) {
     {
       key: "cost",
       header: "Cost",
-      render: (r) => <span className="font-mono tabular">{formatMoney(r.cost)}</span>,
+      render: (r) => (
+        <span className="font-mono tabular">{formatMoney(r.cost)}</span>
+      ),
     },
-    { key: "category", header: "Category", render: (r) => <Badge tone="muted">{r.category}</Badge> },
+    {
+      key: "category",
+      header: "Category",
+      render: (r) => <Badge tone="muted">{r.category}</Badge>,
+    },
     {
       key: "status",
       header: "Status",
@@ -266,7 +309,9 @@ export default function Expenses({ initialSearch }) {
           value={r.status}
           onChange={(e) => handleStatusChange(r, e.target.value)}
           className={`text-xs rounded px-2 py-1 border-0 font-medium cursor-pointer ${
-            r.status === "Delivered" ? "bg-moss-light text-moss-dark" : "bg-sky-light text-sky"
+            r.status === "Delivered"
+              ? "bg-moss-light text-moss-dark"
+              : "bg-sky-light text-sky"
           }`}
         >
           {STATUSES.map((s) => (
@@ -294,19 +339,32 @@ export default function Expenses({ initialSearch }) {
         ),
     },
     {
-      key: "orderDate",
-      header: "Ordered",
-      render: (r) => formatDate(r.orderDate),
+      key: "weightCbm",
+      header: "Weight / CBM",
+      render: (r) => r.weightCbm || "—",
+    },
+    {
+      key: "notes",
+      header: "Notes",
+      render: (r) => (
+        <span className="max-w-[220px] block truncate">{r.notes || "—"}</span>
+      ),
     },
     {
       key: "actions",
       header: "",
       render: (r) => (
         <div className="flex items-center gap-2">
-          <button onClick={() => startEdit(r)} className="text-muted hover:text-moss-dark">
+          <button
+            onClick={() => startEdit(r)}
+            className="text-muted hover:text-moss-dark"
+          >
             <Pencil size={14} />
           </button>
-          <button onClick={() => handleDelete(r._id)} className="text-muted hover:text-clay">
+          <button
+            onClick={() => handleDelete(r._id)}
+            className="text-muted hover:text-clay"
+          >
             <Trash2 size={14} />
           </button>
         </div>
@@ -318,18 +376,26 @@ export default function Expenses({ initialSearch }) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl sm:text-2xl text-ink">Expenses</h1>
+          <h1 className="font-display text-xl sm:text-2xl text-ink">
+            Expenses
+          </h1>
           <p className="text-sm text-muted mt-1">
-            Procurement, ad spend, and other costs. An inventory item marked "Delivered" restocks
-            automatically.
+            Procurement, ad spend, and other costs. An inventory item marked
+            "Delivered" restocks automatically.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => downloadFile(purchasesExportUrl({ status, category, tag }), "zeno-expenses.xlsx")}
+            onClick={() =>
+              downloadFile(
+                purchasesExportUrl({ status, category, tag }),
+                "zeno-expenses.xlsx",
+              )
+            }
             className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-line text-muted hover:text-ink hover:border-moss transition-colors"
           >
-            <FileDown size={15} /> <span className="hidden sm:inline">Export</span>
+            <FileDown size={15} />{" "}
+            <span className="hidden sm:inline">Export</span>
           </button>
           <button
             onClick={() => (showForm ? cancelForm() : setShowForm(true))}
@@ -409,7 +475,9 @@ export default function Expenses({ initialSearch }) {
               required
               placeholder="Expense description"
               value={form.productName}
-              onChange={(e) => setForm({ ...form, productName: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, productName: e.target.value })
+              }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
           )}
@@ -453,56 +521,65 @@ export default function Expenses({ initialSearch }) {
             className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
           />
 
-          {hasColorVariants && !editingId && extraColorLines.map((line, i) => (
-            <div key={i} className="flex items-center gap-2 col-span-1 sm:col-span-2 md:col-span-4">
-              <span className="text-xs text-muted w-16 shrink-0">Also…</span>
-              <select
-                value={line.color}
-                onChange={(e) => updateColorLine(i, "color", e.target.value)}
-                className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+          {hasColorVariants &&
+            !editingId &&
+            extraColorLines.map((line, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 col-span-1 sm:col-span-2 md:col-span-4"
               >
-                {selectedProduct.colors.map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name} — {c.stock} in stock
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min="0"
-                placeholder="Qty"
-                value={line.quantity}
-                onChange={(e) => updateColorLine(i, "quantity", e.target.value)}
-                className="w-24 px-3 py-2 text-sm bg-paper rounded-md border border-line"
-              />
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Cost"
-                value={line.cost}
-                onChange={(e) => updateColorLine(i, "cost", e.target.value)}
-                className="w-28 px-3 py-2 text-sm bg-paper rounded-md border border-line"
-              />
+                <span className="text-xs text-muted w-16 shrink-0">Also…</span>
+                <select
+                  value={line.color}
+                  onChange={(e) => updateColorLine(i, "color", e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                >
+                  {selectedProduct.colors.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name} — {c.stock} in stock
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Qty"
+                  value={line.quantity}
+                  onChange={(e) =>
+                    updateColorLine(i, "quantity", e.target.value)
+                  }
+                  className="w-24 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Cost"
+                  value={line.cost}
+                  onChange={(e) => updateColorLine(i, "cost", e.target.value)}
+                  className="w-28 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeColorLine(i)}
+                  className="text-muted hover:text-clay shrink-0"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+
+          {hasColorVariants &&
+            !editingId &&
+            extraColorLines.length < selectedProduct.colors.length - 1 && (
               <button
                 type="button"
-                onClick={() => removeColorLine(i)}
-                className="text-muted hover:text-clay shrink-0"
+                onClick={addColorLine}
+                className="text-xs text-moss-dark hover:underline text-left col-span-1 sm:col-span-2 md:col-span-4 -mt-1"
               >
-                <Trash2 size={14} />
+                + Add another colour to this purchase
               </button>
-            </div>
-          ))}
-
-          {hasColorVariants && !editingId && extraColorLines.length < selectedProduct.colors.length - 1 && (
-            <button
-              type="button"
-              onClick={addColorLine}
-              className="text-xs text-moss-dark hover:underline text-left col-span-1 sm:col-span-2 md:col-span-4 -mt-1"
-            >
-              + Add another colour to this purchase
-            </button>
-          )}
+            )}
 
           <select
             value={form.status}
@@ -561,7 +638,10 @@ export default function Expenses({ initialSearch }) {
               Saving this will add {form.quantity || 0} unit(s) to{" "}
               {selectedProduct?.name || "the selected product"}'s stock
               {form.color ? ` (${form.color})` : ""}
-              {extraColorLines.length > 0 ? ", plus the additional colour lines above" : ""}.
+              {extraColorLines.length > 0
+                ? ", plus the additional colour lines above"
+                : ""}
+              .
             </p>
           )}
 
@@ -582,6 +662,7 @@ export default function Expenses({ initialSearch }) {
           setSearch(v);
           setPage(1);
         }}
+        onRowDoubleClick={startEdit}
         searchPlaceholder="Search item, supplier, or tag…"
         filters={
           <div className="flex flex-wrap items-center gap-2">
@@ -632,6 +713,7 @@ export default function Expenses({ initialSearch }) {
             </select>
           </div>
         }
+        onRowDoubleClick={startEdit}
         page={page}
         pages={pages}
         onPageChange={setPage}

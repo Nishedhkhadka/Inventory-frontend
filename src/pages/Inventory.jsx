@@ -1,6 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { Plus, Trash2, AlertTriangle, X, History, Loader2 } from "lucide-react";
-import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchStockLog } from "../api/products";
+import {
+  fetchProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  fetchStockLog,
+} from "../api/products";
 import DataTable, { Badge } from "../components/DataTable";
 import { focusNextOnEnter } from "../utils/formNav";
 import { formatMoney } from "../utils/currency";
@@ -37,7 +43,11 @@ export default function Inventory({ initialSearch }) {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = useCallback(() => {
-    fetchProducts({ search, type, lowStockOnly: lowStockOnly || undefined }).then(setProducts);
+    fetchProducts({
+      search,
+      type,
+      lowStockOnly: lowStockOnly || undefined,
+    }).then(setProducts);
   }, [search, type, lowStockOnly]);
 
   useEffect(() => {
@@ -45,7 +55,12 @@ export default function Inventory({ initialSearch }) {
   }, [load]);
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this product? Existing sales referencing it will be orphaned.")) return;
+    if (
+      !confirm(
+        "Delete this product? Existing sales referencing it will be orphaned.",
+      )
+    )
+      return;
     await deleteProduct(id);
     load();
   };
@@ -74,24 +89,34 @@ export default function Inventory({ initialSearch }) {
     setStockError(null);
   };
 
-  const addColorRow = () => setForm((f) => ({ ...f, colors: [...f.colors, { name: "", stock: 0 }] }));
+  const addColorRow = () =>
+    setForm((f) => ({ ...f, colors: [...f.colors, { name: "", stock: 0 }] }));
   const updateColorRow = (i, key, value) =>
     setForm((f) => ({
       ...f,
-      colors: f.colors.map((c, idx) => (idx === i ? { ...c, [key]: value } : c)),
+      colors: f.colors.map((c, idx) =>
+        idx === i ? { ...c, [key]: value } : c,
+      ),
     }));
   const removeColorRow = (i) =>
     setForm((f) => ({ ...f, colors: f.colors.filter((_, idx) => idx !== i) }));
 
   const hasColors = form.colors.length > 0;
-  const colorStockTotal = form.colors.reduce((s, c) => s + (Number(c.stock) || 0), 0);
+  const colorStockTotal = form.colors.reduce(
+    (s, c) => s + (Number(c.stock) || 0),
+    0,
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStockError(null);
     const newStock = hasColors ? colorStockTotal : Number(form.currentStock);
 
-    if (editingId && newStock !== originalStock && !form.stockChangeComment.trim()) {
+    if (
+      editingId &&
+      newStock !== originalStock &&
+      !form.stockChangeComment.trim()
+    ) {
       setStockError("Please explain why you're changing the stock quantity.");
       return;
     }
@@ -140,11 +165,17 @@ export default function Inventory({ initialSearch }) {
   const columns = [
     { key: "name", header: "Product" },
     { key: "sku", header: "SKU", render: (r) => r.sku || "—" },
-    { key: "type", header: "Type", render: (r) => <Badge tone="muted">{r.type}</Badge> },
+    {
+      key: "type",
+      header: "Type",
+      render: (r) => <Badge tone="muted">{r.type}</Badge>,
+    },
     {
       key: "retailPrice",
       header: "Retail price",
-      render: (r) => <span className="font-mono tabular">{formatMoney(r.retailPrice)}</span>,
+      render: (r) => (
+        <span className="font-mono tabular">{formatMoney(r.retailPrice)}</span>
+      ),
     },
     {
       key: "costPrice",
@@ -159,9 +190,13 @@ export default function Inventory({ initialSearch }) {
       key: "currentStock",
       header: "Stock on hand",
       render: (r) => (
-        <span className={`font-mono tabular ${r.isLowStock ? "text-clay font-medium" : ""}`}>
+        <span
+          className={`font-mono tabular ${r.isLowStock ? "text-clay font-medium" : ""}`}
+        >
           {r.currentStock}
-          {r.isLowStock && <AlertTriangle size={12} className="inline ml-1.5 -mt-0.5" />}
+          {r.isLowStock && (
+            <AlertTriangle size={12} className="inline ml-1.5 -mt-0.5" />
+          )}
         </span>
       ),
     },
@@ -192,13 +227,23 @@ export default function Inventory({ initialSearch }) {
       header: "",
       render: (r) => (
         <div className="flex items-center gap-3">
-          <button onClick={() => startEdit(r)} className="text-xs text-muted hover:text-moss-dark">
+          <button
+            onClick={() => startEdit(r)}
+            className="text-xs text-muted hover:text-moss-dark"
+          >
             Edit
           </button>
-          <button onClick={() => openHistory(r)} className="text-muted hover:text-ink" title="Stock change history">
+          <button
+            onClick={() => openHistory(r)}
+            className="text-muted hover:text-ink"
+            title="Stock change history"
+          >
             <History size={14} />
           </button>
-          <button onClick={() => handleDelete(r._id)} className="text-muted hover:text-clay">
+          <button
+            onClick={() => handleDelete(r._id)}
+            className="text-muted hover:text-clay"
+          >
             <Trash2 size={14} />
           </button>
         </div>
@@ -210,11 +255,13 @@ export default function Inventory({ initialSearch }) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl sm:text-2xl text-ink">Inventory</h1>
+          <h1 className="font-display text-xl sm:text-2xl text-ink">
+            Inventory
+          </h1>
           <p className="text-sm text-muted mt-1">
-            Stock is deducted as soon as a sales order is placed (through Packed, Delivered, and
-            Damaged — restored on Returned) and added once an inventory expense is marked
-            Delivered.
+            Stock is deducted as soon as a sales order is placed (through
+            Packed, Delivered, and Damaged — restored on Returned) and added
+            once an inventory expense is marked Delivered.
           </p>
         </div>
         <button
@@ -262,7 +309,9 @@ export default function Inventory({ initialSearch }) {
               step="0.01"
               placeholder="Retail price"
               value={form.retailPrice}
-              onChange={(e) => setForm({ ...form, retailPrice: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, retailPrice: e.target.value })
+              }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
             <input
@@ -279,7 +328,9 @@ export default function Inventory({ initialSearch }) {
               min="0"
               placeholder="Low stock alert threshold"
               value={form.lowStockAlert}
-              onChange={(e) => setForm({ ...form, lowStockAlert: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, lowStockAlert: e.target.value })
+              }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
             <input
@@ -288,7 +339,9 @@ export default function Inventory({ initialSearch }) {
               placeholder="Starting stock"
               disabled={hasColors}
               value={hasColors ? colorStockTotal : form.currentStock}
-              onChange={(e) => setForm({ ...form, currentStock: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, currentStock: e.target.value })
+              }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line disabled:opacity-50"
             />
           </div>
@@ -304,14 +357,17 @@ export default function Inventory({ initialSearch }) {
                 }}
                 className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
               />
-              {stockError && <p className="text-xs text-clay mt-1">{stockError}</p>}
+              {stockError && (
+                <p className="text-xs text-clay mt-1">{stockError}</p>
+              )}
             </div>
           )}
 
           <div className="border-t border-line pt-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs uppercase tracking-wide text-muted">
-                Colour variants (optional — stock is tracked per colour when set)
+                Colour variants (optional — stock is tracked per colour when
+                set)
               </p>
               <button
                 type="button"
@@ -322,7 +378,9 @@ export default function Inventory({ initialSearch }) {
               </button>
             </div>
             {form.colors.length === 0 ? (
-              <p className="text-xs text-muted">No colour variants — this product uses a single stock count.</p>
+              <p className="text-xs text-muted">
+                No colour variants — this product uses a single stock count.
+              </p>
             ) : (
               <div className="space-y-2">
                 {form.colors.map((c, i) => (
@@ -330,7 +388,9 @@ export default function Inventory({ initialSearch }) {
                     <input
                       placeholder="Colour name (e.g. Black)"
                       value={c.name}
-                      onChange={(e) => updateColorRow(i, "name", e.target.value)}
+                      onChange={(e) =>
+                        updateColorRow(i, "name", e.target.value)
+                      }
                       className="flex-1 px-3 py-1.5 text-sm bg-paper rounded-md border border-line"
                     />
                     <input
@@ -338,7 +398,9 @@ export default function Inventory({ initialSearch }) {
                       min="0"
                       placeholder="Stock"
                       value={c.stock}
-                      onChange={(e) => updateColorRow(i, "stock", e.target.value)}
+                      onChange={(e) =>
+                        updateColorRow(i, "stock", e.target.value)
+                      }
                       className="w-28 px-3 py-1.5 text-sm bg-paper rounded-md border border-line"
                     />
                     <button
@@ -368,6 +430,7 @@ export default function Inventory({ initialSearch }) {
         rows={products}
         searchValue={search}
         onSearchChange={setSearch}
+        onRowDoubleClick={startEdit}
         searchPlaceholder="Search name or SKU…"
         filters={
           <div className="flex flex-wrap items-center gap-3">
@@ -411,10 +474,15 @@ export default function Inventory({ initialSearch }) {
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-line">
               <div>
-                <p className="font-display text-lg text-ink">Stock change history</p>
+                <p className="font-display text-lg text-ink">
+                  Stock change history
+                </p>
                 <p className="text-xs text-muted mt-0.5">{historyFor.name}</p>
               </div>
-              <button onClick={() => setHistoryFor(null)} className="text-muted hover:text-ink">
+              <button
+                onClick={() => setHistoryFor(null)}
+                className="text-muted hover:text-ink"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -425,11 +493,16 @@ export default function Inventory({ initialSearch }) {
                   <Loader2 size={14} className="animate-spin" /> Loading…
                 </p>
               ) : historyLogs.length === 0 ? (
-                <p className="text-sm text-muted">No manual stock changes logged yet.</p>
+                <p className="text-sm text-muted">
+                  No manual stock changes logged yet.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {historyLogs.map((log) => (
-                    <div key={log._id} className="border-b border-line pb-3 last:border-0 last:pb-0">
+                    <div
+                      key={log._id}
+                      className="border-b border-line pb-3 last:border-0 last:pb-0"
+                    >
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-mono tabular text-ink">
                           {log.previousStock} → {log.newStock}
