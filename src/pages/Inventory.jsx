@@ -1,17 +1,37 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, AlertTriangle, X, History, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  AlertTriangle,
+  X,
+  History,
+  Loader2,
+} from "lucide-react";
 import {
   fetchProducts,
   createProduct,
   updateProduct,
   deleteProduct,
+  fetchProductTypes,
+  createProductType,
+  updateProductType,
+  deleteProductType,
   fetchStockLog,
 } from "../api/products";
 import DataTable, { Badge } from "../components/DataTable";
 import { focusNextOnEnter } from "../utils/formNav";
 import { formatMoney } from "../utils/currency";
 
-const TYPES = ["Lamp", "Wallet", "Pouch", "Decor", "Packaging"];
+const DEFAULT_TYPES = [
+  "Lamp",
+  "Wallet",
+  "Pouch",
+  "Decor",
+  "Packaging",
+  "Miscellaneous",
+];
+const ADD_TYPE_OPTION = "__add_new__";
 
 const emptyForm = {
   name: "",
@@ -27,9 +47,12 @@ const emptyForm = {
 
 export default function Inventory({ initialSearch }) {
   const [products, setProducts] = useState([]);
+  const [types, setTypes] = useState(DEFAULT_TYPES);
   const [search, setSearch] = useState(initialSearch || "");
   const [type, setType] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [addingType, setAddingType] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [originalStock, setOriginalStock] = useState(0);
@@ -50,9 +73,15 @@ export default function Inventory({ initialSearch }) {
     }).then(setProducts);
   }, [search, type, lowStockOnly]);
 
+  const loadTypes = useCallback(async () => {
+    const next = await fetchProductTypes();
+    setTypes(next);
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadTypes();
+  }, [load, loadTypes]);
 
   const handleDelete = async (id) => {
     if (
@@ -63,6 +92,83 @@ export default function Inventory({ initialSearch }) {
       return;
     await deleteProduct(id);
     load();
+  };
+
+  const handleTypeChange = (nextType) => {
+    if (nextType === ADD_TYPE_OPTION) {
+      setAddingType(true);
+      setNewTypeName("");
+      return;
+    }
+    setForm((f) => ({ ...f, type: nextType }));
+  };
+
+  const confirmNewType = async () => {
+    const name = newTypeName.trim();
+    if (!name) {
+      setAddingType(false);
+      return;
+    }
+
+    try {
+      const saved = await createProductType({ name });
+      const merged = [...new Set([...types, saved.name || name])].sort();
+      setTypes(merged);
+      setForm((f) => ({ ...f, type: saved.name || name }));
+      setAddingType(false);
+      setNewTypeName("");
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleTypeEdit = async () => {
+    const current = form.type;
+    if (!current || current === "Miscellaneous") return;
+
+    const nextName = window.prompt("Edit type name", current);
+    const cleaned = nextName?.trim();
+    if (!cleaned || cleaned === current) return;
+
+    try {
+      const result = await updateProductType(current, { name: cleaned });
+      const merged = [
+        ...new Set([
+          ...types.filter((value) => value !== current),
+          result.newName || cleaned,
+        ]),
+      ].sort();
+      setTypes(merged);
+      setForm((f) => ({ ...f, type: result.newName || cleaned }));
+      if (type === current) setType(result.newName || cleaned);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleTypeDelete = async () => {
+    const current = form.type;
+    if (!current || current === "Miscellaneous") return;
+
+    const confirmed = window.confirm(
+      `Delete type "${current}"? Products using it will be moved to "Miscellaneous".`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteProductType(current);
+      const merged = [
+        ...new Set(types.filter((value) => value !== current)),
+      ].sort();
+      setTypes(merged);
+      setForm((f) => ({ ...f, type: "Miscellaneous" }));
+      if (type === current) setType("Miscellaneous");
+      if (result.message) {
+        alert(result.message);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
   };
 
   const startEdit = (p) => {
@@ -293,15 +399,72 @@ export default function Inventory({ initialSearch }) {
               onChange={(e) => setForm({ ...form, sku: e.target.value })}
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
-            <select
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
-            >
-              {TYPES.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
+            {addingType ? (
+              <div className="flex gap-2 items-center">
+                <input
+                  autoFocus
+                  placeholder="New type name"
+                  value={newTypeName}
+                  onChange={(e) => setNewTypeName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      confirmNewType();
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                />
+                <button
+                  type="button"
+                  onClick={confirmNewType}
+                  className="px-3 py-2 text-sm rounded-md border border-line text-ink hover:border-moss transition-colors"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddingType(false)}
+                  className="px-2 text-sm text-muted hover:text-ink"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <select
+                  value={form.type}
+                  onChange={(e) => handleTypeChange(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                >
+                  {types.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                  <option value={ADD_TYPE_OPTION}>+ Add new type…</option>
+                </select>
+                {form.type !== "Miscellaneous" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleTypeEdit}
+                      className="text-muted hover:text-moss-dark shrink-0"
+                      title="Edit type"
+                      aria-label="Edit type"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTypeDelete}
+                      className="text-muted hover:text-clay shrink-0"
+                      title="Delete type"
+                      aria-label="Delete type"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
             <input
               required
               type="number"
@@ -440,7 +603,7 @@ export default function Inventory({ initialSearch }) {
               className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
             >
               <option value="">All types</option>
-              {TYPES.map((t) => (
+              {types.map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
