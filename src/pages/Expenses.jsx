@@ -8,6 +8,7 @@ import {
   purchasesExportUrl,
   fetchPurchaseTags,
   fetchPurchaseCategories,
+  deletePurchaseCategory,
 } from "../api/purchases";
 import { fetchProducts } from "../api/products";
 import DataTable, { Badge } from "../components/DataTable";
@@ -120,6 +121,25 @@ export default function Expenses({ initialSearch }) {
       color: cat === "Inventory" ? f.color : "",
     }));
     setExtraColorLines([]);
+  };
+
+  const handleCategoryDelete = async () => {
+    const active = form.category;
+    if (!active || DEFAULT_CATEGORIES.includes(active)) return;
+
+    const confirmed = window.confirm(
+      `Delete category "${active}"? Any expenses in it will be moved to "Miscellaneous".`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const result = await deletePurchaseCategory(active);
+      setCategories(result.categories || []);
+      setForm((prev) => ({ ...prev, category: "Miscellaneous" }));
+      if (category === active) setCategory("Miscellaneous");
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
   };
 
   const confirmNewCategory = () => {
@@ -444,16 +464,29 @@ export default function Expenses({ initialSearch }) {
               </button>
             </div>
           ) : (
-            <select
-              value={form.category}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
-            >
-              {categories.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-              <option value={ADD_CATEGORY_OPTION}>+ Add new category…</option>
-            </select>
+            <div className="flex gap-2 items-center">
+              <select
+                value={form.category}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              >
+                {categories.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+                <option value={ADD_CATEGORY_OPTION}>+ Add new category…</option>
+              </select>
+              {!DEFAULT_CATEGORIES.includes(form.category) && (
+                <button
+                  type="button"
+                  onClick={handleCategoryDelete}
+                  className="text-muted hover:text-clay shrink-0"
+                  title="Delete this category"
+                  aria-label="Delete this category"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
           )}
 
           {isInventory ? (
