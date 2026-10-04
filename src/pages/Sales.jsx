@@ -63,13 +63,17 @@ const makeEmptyLine = () => ({
 });
 
 const DELIVERY_PARTNER_DEFAULTS = [
-  "PD",
-  "ID",
-  "YG",
-  "Nabil",
+  
+  "Upaya",
   "Pathao",
-  "RedX",
+  "Indrive",
+  "Yango",
+  "Fabbud",
+  "Self"
+
+
 ];
+
 
 const makeEmptyOrderForm = () => ({
   orderId: "",
@@ -1595,389 +1599,352 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     }
   };
 
-  // ---------------------------------------------------------
-  // TABLE COLUMNS
-  // ---------------------------------------------------------
+// ---------------------------------------------------------
+// TABLE COLUMNS
+// ---------------------------------------------------------
 
-  const columns = [
-    // -------------------------------------------------------
-    // CHECKBOX
-    // -------------------------------------------------------
+const columns = [
+  // -------------------------------------------------------
+  // CHECKBOX
+  // -------------------------------------------------------
 
-    {
-      key: "select",
+  {
+    key: "select",
 
-      header: (
-        <input
-          type="checkbox"
-          checked={allVisibleSelected}
-          ref={(el) => {
-            if (el) {
-              el.indeterminate =
-                someVisibleSelected &&
-                !allVisibleSelected;
-            }
-          }}
-          onChange={
-            toggleSelectAll
+    header: (
+      <input
+        type="checkbox"
+        checked={allVisibleSelected}
+        ref={(el) => {
+          if (el) {
+            el.indeterminate =
+              someVisibleSelected &&
+              !allVisibleSelected;
           }
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          aria-label="Select all orders"
-          className="h-4 w-4 cursor-pointer accent-current"
-        />
-      ),
+        }}
+        onChange={toggleSelectAll}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select all orders"
+        className="h-4 w-4 cursor-pointer accent-current"
+      />
+    ),
 
-      render: (r) => (
-        <input
-          type="checkbox"
-          checked={selectedOrders.has(
-            r.key,
-          )}
-          onChange={() =>
-            toggleOrderSelection(
-              r.key,
-            )
-          }
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          aria-label={`Select order ${
-            baseOrderId(
-              r.primary.orderId,
-            ) || ""
-          }`}
-          className="h-4 w-4 cursor-pointer accent-current"
-        />
-      ),
-    },
+    render: (r) => (
+      <input
+        type="checkbox"
+        checked={selectedOrders.has(r.key)}
+        onChange={() =>
+          toggleOrderSelection(r.key)
+        }
+        onClick={(e) => e.stopPropagation()}
+        aria-label={`Select order ${
+          baseOrderId(r.primary.orderId) || ""
+        }`}
+        className="h-4 w-4 cursor-pointer accent-current"
+      />
+    ),
+  },
 
-    // -------------------------------------------------------
-    // DATE
-    // -------------------------------------------------------
+  // -------------------------------------------------------
+  // DATE
+  // -------------------------------------------------------
 
-    {
-      key: "date",
+  {
+  key: "date",
+  header: "Date",
+  render: (r) => (
+    <div className="whitespace-nowrap text-sm">
+      {formatDate(r.primary.orderDate || r.primary.createdAt)}
+    </div>
+  ),
+},
+  // -------------------------------------------------------
+  // ORDER + CUSTOMER
+  // -------------------------------------------------------
 
-      header: "Date",
+  {
+  key: "orderCustomer",
+  header: "Order / Customer",
+  render: (r) => (
+    <div className="min-w-[180px] max-w-[230px]">
+      {/* Order ID + Bill No */}
+      <div className="flex items-center gap-2 mb-0.5">
+        <span className="font-normal text-sm text-gray-600">
+          {baseOrderId(r.primary.orderId) || "—"}
+        </span>
 
-      render: (r) =>
-        formatDate(
-          r.primary.orderDate,
-        ),
-    },
+        {r.primary.billNo && (
+          <span className="text-[10px] text-gray-500">
+            {r.primary.billNo}
+          </span>
+        )}
+      </div>
 
-    // -------------------------------------------------------
-    // ORDER ID + BILL NUMBER
-    // -------------------------------------------------------
+      {/* Customer Name */}
+      <div className="font-semibold text-gray-900 truncate">
+        {r.primary.pointOfContact || "Walk-in customer"}
+      </div>
 
-    {
-      key: "order",
-
-      header: "Order ID",
-
-      render: (r) => (
-        <div>
-          <div className="font-medium">
-            {baseOrderId(
-              r.primary.orderId,
-            ) || "—"}
-          </div>
-
-          <div className="text-xs text-muted min-h-[16px]">
-            {r.primary.billNo || ""}
-          </div>
+      {/* Phone */}
+      {r.primary.customerPhone && (
+        <div className="text-xs text-gray-500 truncate">
+          {r.primary.customerPhone}
         </div>
-      ),
-    },
+      )}
+    </div>
+  ),
+},
+  // -------------------------------------------------------
+  // PRODUCTS
+  // -------------------------------------------------------
 
-    // -------------------------------------------------------
-    // CUSTOMER
-    // -------------------------------------------------------
+  {
+    key: "product",
 
-    {
-      key: "customer",
+    header: "Products",
 
-      header: "Customer",
+    render: (r) => (
+      <div className="min-w-[180px] max-w-[240px] space-y-0.5">
+        {r.lines.map((l, idx) => (
+          <div
+            key={
+              l._id ||
+              `${l.product?._id || l.product}-${idx}`
+            }
+            className="text-sm truncate"
+            title={`${l.product?.name || "Product"}${
+              l.color ? ` (${l.color})` : ""
+            } ×${l.quantity}`}
+          >
+            <span className="font-medium">
+              {l.product?.name || "Product"}
+            </span>
 
-      render: (r) => (
-        <div>
-          <div className="font-medium">
-            {r.primary
-              .pointOfContact ||
-              "—"}
+            {l.color && (
+              <span className="text-muted">
+                {" "}
+                ({l.color})
+              </span>
+            )}
+
+            <span className="text-muted font-medium">
+              {" "}
+              ×{l.quantity}
+            </span>
+          </div>
+        ))}
+
+        {r.lines.length > 1 && (
+          <div className="text-[10px] text-muted">
+            {r.lines.length} products
+          </div>
+        )}
+      </div>
+    ),
+  },
+
+  // -------------------------------------------------------
+  // GRAND TOTAL
+  // -------------------------------------------------------
+
+  {
+    key: "total",
+
+    header: "Total",
+
+    render: (r) => {
+      const delivery =
+        r.deliveryLine?.deliveryFeeCharged || 0;
+
+      return (
+        <div className="whitespace-nowrap">
+          <div className="font-semibold">
+            {formatMoney(
+              r.lineTotal + delivery
+            )}
           </div>
 
-          {r.primary
-            .customerPhone && (
-            <div className="text-xs text-muted">
-              {
-                r.primary
-                  .customerPhone
-              }
+          {delivery > 0 && (
+            <div className="text-[10px] text-muted">
+              {formatMoney(delivery)} delivery
             </div>
           )}
         </div>
-      ),
+      );
     },
+  },
 
-    // -------------------------------------------------------
-    // PRODUCTS
-    // -------------------------------------------------------
+  // -------------------------------------------------------
+  // STATUS
+  // -------------------------------------------------------
 
-    {
-      key: "product",
+  {
+    key: "status",
 
-      header: "Products",
+    header: "Status",
 
-      render: (r) => (
-        <div className="space-y-1 min-w-[160px]">
-          {r.lines.map(
-            (l, idx) => (
-              <div
-                key={
-                  l._id ||
-                  `${
-                    l.product?._id ||
-                    l.product
-                  }-${idx}`
-                }
-                className="text-sm"
-              >
-                {l.product?.name ||
-                  "Product"}
+    render: (r) => (
+      <select
+        value={r.primary.status}
+        onChange={(e) =>
+          handleStatusChange(
+            r,
+            e.target.value
+          )
+        }
+        onClick={(e) => e.stopPropagation()}
+        className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
+          STATUS_TONE[r.primary.status] ||
+          "bg-paper text-muted"
+        }`}
+      >
+        {STATUSES.map((s) => (
+          <option
+            key={s}
+            className="bg-paper text-ink"
+          >
+            {s}
+          </option>
+        ))}
+      </select>
+    ),
+  },
 
-                {l.color && (
-                  <span className="text-muted">
-                    {" "}
-                    ({l.color})
-                  </span>
-                )}
+  // -------------------------------------------------------
+  // PAYMENT
+  // -------------------------------------------------------
 
-                <span className="text-muted font-medium">
-                  {" "}
-                  ×{l.quantity}
-                </span>
-              </div>
-            ),
-          )}
-        </div>
-      ),
-    },
+  {
+    key: "payment",
 
-    // -------------------------------------------------------
-    // GRAND TOTAL
-    // -------------------------------------------------------
+    header: "Payment",
 
-    {
-      key: "total",
-
-      header: "Grand Total",
-
-      render: (r) => {
-        const delivery =
-          r.deliveryLine
-            ?.deliveryFeeCharged ||
-          0;
-
-        return formatMoney(
-          r.lineTotal +
-            delivery,
-        );
-      },
-    },
-
-    // -------------------------------------------------------
-    // DELIVERY COST
-    // -------------------------------------------------------
-
-    {
-      key: "deliveryCost",
-
-      header: "Delivery Cost",
-
-      render: (r) =>
-        r.deliveryLine
-          ?.deliveryCost
-          ? formatMoney(
-              r.deliveryLine
-                .deliveryCost,
-            )
-          : "—",
-    },
-
-    // -------------------------------------------------------
-    // NOTES
-    // -------------------------------------------------------
-
-    {
-      key: "notes",
-
-      header: "Notes",
-
-      render: (r) => (
-        <span className="max-w-[200px] block truncate">
-          {r.primary.notes ||
-            "—"}
-        </span>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // STATUS
-    // -------------------------------------------------------
-
-    {
-      key: "status",
-
-      header: "Status",
-
-      render: (r) => (
-        <select
-          value={
-            r.primary.status
-          }
-          onChange={(e) =>
-            handleStatusChange(
-              r,
-              e.target.value,
-            )
-          }
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          className={`text-xs rounded-full px-2.5 py-1 border-0 font-medium cursor-pointer ${
-            STATUS_TONE[
-              r.primary.status
-            ] ||
-            "bg-paper text-muted"
-          }`}
-        >
-          {STATUSES.map(
-            (s) => (
-              <option
-                key={s}
-                className="bg-paper text-ink"
-              >
-                {s}
-              </option>
-            ),
-          )}
-        </select>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // DELIVERY PARTNER
-    // -------------------------------------------------------
-
-    {
-      key: "deliveryPartner",
-
-      header: "Delivery partner",
-
-      render: (r) => (
-        <span className="font-medium">
-          {r.deliveryLine
-            ?.deliveryPartner ||
-            "—"}
-        </span>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // PAYMENT
-    // -------------------------------------------------------
-
-    {
-      key: "payment",
-
-      header: "Payment",
-
-      render: (r) => (
-        <select
-          value={
+    render: (r) => (
+      <select
+        value={r.primary.paidStatus}
+        onChange={(e) =>
+          handlePaidStatusChange(
+            r,
+            e.target.value
+          )
+        }
+        onClick={(e) => e.stopPropagation()}
+        className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
+          PAYMENT_TONE[
             r.primary.paidStatus
-          }
-          onChange={(e) =>
-            handlePaidStatusChange(
-              r,
-              e.target.value,
-            )
-          }
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          className={`text-xs rounded-full px-2.5 py-1 border-0 font-medium cursor-pointer ${
-            PAYMENT_TONE[
-              r.primary
-                .paidStatus
-            ] ||
-            "bg-paper text-muted"
-          }`}
-        >
-          {PAID_STATUSES.map(
-            (s) => (
-              <option
-                key={s}
-                className="bg-paper text-ink"
-              >
-                {s}
-              </option>
-            ),
-          )}
-        </select>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // ACTIONS
-    // -------------------------------------------------------
-
-    {
-      key: "actions",
-
-      header: "",
-
-      render: (r) => (
-        <div className="flex gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              printInvoice(r);
-            }}
-            className="text-muted hover:text-ink"
-            title="Print invoice"
+          ] || "bg-paper text-muted"
+        }`}
+      >
+        {PAID_STATUSES.map((s) => (
+          <option
+            key={s}
+            className="bg-paper text-ink"
           >
-            <Printer size={15} />
-          </button>
+            {s}
+          </option>
+        ))}
+      </select>
+    ),
+  },
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              startEdit(r);
-            }}
-            className="text-muted hover:text-green-700"
-            title="Edit order"
-          >
-            <Pencil size={15} />
-          </button>
+  // -------------------------------------------------------
+  // DELIVERY
+  // -------------------------------------------------------
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(r);
-            }}
-            className="text-muted hover:text-red-700"
-            title="Delete order"
-          >
-            <Trash2 size={15} />
-          </button>
+  {
+    key: "delivery",
+
+    header: "Delivery",
+
+    render: (r) => {
+      const partner =
+        r.deliveryLine?.deliveryPartner;
+
+      const cost =
+        r.deliveryLine?.deliveryCost;
+
+      return (
+        <div className="min-w-[90px]">
+          <div className="font-medium">
+            {partner || "—"}
+          </div>
+
+          {cost ? (
+            <div className="text-[10px] text-muted">
+              {formatMoney(cost)}
+            </div>
+          ) : null}
         </div>
-      ),
+      );
     },
-  ];
+  },
+
+  // -------------------------------------------------------
+  // NOTES
+  // -------------------------------------------------------
+
+  {
+    key: "notes",
+
+    header: "Notes",
+
+    render: (r) => (
+      <span
+        className="block max-w-[160px] truncate text-xs text-muted"
+        title={r.primary.notes || ""}
+      >
+        {r.primary.notes || "—"}
+      </span>
+    ),
+  },
+
+  // -------------------------------------------------------
+  // ACTIONS
+  // -------------------------------------------------------
+
+  {
+    key: "actions",
+
+    header: "",
+
+    render: (r) => (
+      <div className="flex gap-2 whitespace-nowrap">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            printInvoice(r);
+          }}
+          className="text-muted hover:text-ink"
+          title="Print invoice"
+        >
+          <Printer size={15} />
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            startEdit(r);
+          }}
+          className="text-muted hover:text-green-700"
+          title="Edit order"
+        >
+          <Pencil size={15} />
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(r);
+          }}
+          className="text-muted hover:text-red-700"
+          title="Delete order"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    ),
+  },
+];
 
   // ---------------------------------------------------------
   // RETURN
