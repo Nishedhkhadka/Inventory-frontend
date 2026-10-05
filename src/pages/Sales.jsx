@@ -20,6 +20,7 @@ import {
   X,
   FileDown,
   Printer,
+  ChevronDown,
   Truck,
 } from "lucide-react";
 
@@ -65,17 +66,22 @@ const makeEmptyLine = () => ({
 });
 
 const DELIVERY_PARTNER_DEFAULTS = [
+  
   "Upaya",
   "Pathao",
   "Indrive",
   "Yango",
   "Fabbud",
-  "Self",
+  "Self"
+
+
 ];
+
 
 const makeEmptyOrderForm = () => ({
   orderId: "",
   billNo: "",
+  billIssued: false,
   status: "In progress",
   paidStatus: "COD",
   pointOfContact: "",
@@ -118,8 +124,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     DELIVERY_PARTNER_DEFAULTS,
   );
 
-  const [deliveryMenuOpen, setDeliveryMenuOpen] =
-    useState(false);
+  const [deliveryMenuOpen, setDeliveryMenuOpen] = useState(false);
 
   // ---------------------------------------------------------
   // BULK SELECTION
@@ -146,6 +151,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       to: toDate,
     }).then((res) => {
       const sorted = [...(res.data || [])].sort((a, b) => {
+        // Newest order date first
         const dateA = new Date(
           a.orderDate || 0,
         ).getTime();
@@ -158,6 +164,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           return dateB - dateA;
         }
 
+        // Same date → newest created order first
         const createdA = new Date(
           a.createdAt || 0,
         ).getTime();
@@ -265,8 +272,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     return Array.from(map.entries())
       .map(([key, groupLines]) => {
-        // The line containing the manual bill number becomes
-        // the primary line for displaying the order.
         const primary =
           groupLines.find((l) => l.billNo) ||
           groupLines.find((l) => l.pointOfContact) ||
@@ -379,10 +384,12 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       const next = new Set(prev);
 
       if (allVisibleSelected) {
+        // Remove all visible orders
         groupedSales.forEach((group) => {
           next.delete(group.key);
         });
       } else {
+        // Add all visible orders
         groupedSales.forEach((group) => {
           next.add(group.key);
         });
@@ -622,6 +629,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       ),
     );
 
+    // Remove from selection if selected
     setSelectedOrders((prev) => {
       const next = new Set(prev);
       next.delete(group.key);
@@ -635,701 +643,238 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // PRINT INVOICE
   // ---------------------------------------------------------
 
-  const printInvoice = (group) => {
-    const profile = getBusinessProfile();
+ const printInvoice = (group) => {
+  const profile = getBusinessProfile();
+  const billSource = group.lines.find((line) => line.billNo) || group.primary;
+  const invoiceDate = formatDate(group.primary.orderDate || todayStr());
 
-    const billSource =
-      group.lines.find((line) => line.billNo) ||
-      group.primary;
+  const subtotalValue = group.lines.reduce(
+    (sum, line) =>
+      sum + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
+    0
+  );
 
-    const invoiceDate = formatDate(
-      group.primary.orderDate || todayStr(),
-    );
+  const discountedSubtotal = group.lines.reduce(
+    (sum, line) => sum + (Number(line.lineTotal) || 0),
+    0
+  );
 
-    const subtotalValue = group.lines.reduce(
-      (sum, line) =>
-        sum +
-        (Number(line.quantity) || 0) *
-          (Number(line.unitPrice) || 0),
-      0,
-    );
+  const discountValue = Math.max(0, subtotalValue - discountedSubtotal);
+  
+  // Delivery Fee Charged to customer
+  const deliveryFee = Number(group.deliveryLine?.deliveryFeeCharged) || 0;
+  const deliveryPartner = group.deliveryLine?.deliveryPartner || "—";
 
-    const discountedSubtotal = group.lines.reduce(
-      (sum, line) =>
-        sum + (Number(line.lineTotal) || 0),
-      0,
-    );
+  const grandTotalValue = Math.max(0, discountedSubtotal + deliveryFee);
+  const billNo = String(billSource.billNo || "BILL").trim() || "BILL";
 
-    const discountValue = Math.max(
-      0,
-      subtotalValue - discountedSubtotal,
-    );
+  const rows = group.lines
+    .map((line, idx) => {
+      const lineAmount =
+        (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0);
 
-    const deliveryFee =
-      Number(
-        group.deliveryLine?.deliveryFeeCharged,
-      ) || 0;
-
-    const deliveryPartner =
-      group.deliveryLine?.deliveryPartner || "";
-
-    const grandTotalValue = Math.max(
-      0,
-      discountedSubtotal + deliveryFee,
-    );
-
-    // Manual bill number only.
-    // If there is no bill number, show a dash.
-    const billNo =
-      String(billSource.billNo || "").trim() ;
-
-    const rows = group.lines
-      .map((line, idx) => {
-        const lineAmount =
-          (Number(line.quantity) || 0) *
-          (Number(line.unitPrice) || 0);
-
-        return `
+      return `
         <tr>
           <td>${idx + 1}</td>
           <td>${line.product?.name || "Product"}${
-          line.color ? ` (${line.color})` : ""
-        }</td>
+        line.color ? ` (${line.color})` : ""
+      }</td>
           <td>${Number(line.quantity) || 0}</td>
-          <td>${formatMoneyText(
-            Number(line.unitPrice) || 0,
-          )}</td>
-          <td>${formatMoneyText(
-            lineAmount,
-          )}</td>
+          <td>${formatMoneyText(Number(line.unitPrice) || 0)}</td>
+          <td>${formatMoneyText(lineAmount)}</td>
         </tr>`;
-      })
-      .join("");
-
-    const addressLines = (profile.address || "")
-      .split(/\n|,/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .join("<br />");
-
-    const printableHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Bill - ${
-    baseOrderId(group.primary.orderId) || "Order"
-  }</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      color: #000;
-      margin: 0;
-      padding: 0;
-      background: #fff;
-      font-size: 13px;
-    }
-
-    .invoice {
-      width: 100%;
-      max-width: 850px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    /* HEADER */
-    .header {
-      text-align: center;
-      border-bottom: 1px solid #000;
-      padding-bottom: 10px;
-    }
-
-    .logo {
-      width: 55px;
-      height: 55px;
-      object-fit: contain;
-      margin-bottom: 5px;
-    }
-
-    .company-name {
-      font-size: 22px;
-      font-weight: bold;
-      margin: 0;
-    }
-
-    .company-details {
-      font-size: 12px;
-      line-height: 1.5;
-      margin-top: 3px;
-    }
-
-    .pan {
-      font-size: 13px;
-      font-weight: bold;
-      margin-top: 4px;
-    }
-
-    .invoice-title {
-      text-align: center;
-      font-size: 17px;
-      font-weight: bold;
-      margin: 9px 0;
-    }
-
-    /* BILL INFORMATION */
-    .bill-info {
-      width: 100%;
-      border: 1px solid #000;
-      border-collapse: collapse;
-      margin-bottom: 10px;
-    }
-
-    .bill-info td {
-      border: 1px solid #000;
-      padding: 7px 9px;
-    }
-
-    .label {
-      font-weight: bold;
-    }
-
-    /* CUSTOMER */
-    .customer {
-      border: 1px solid #000;
-      padding: 8px 10px;
-      margin-bottom: 10px;
-    }
-
-    .customer-title {
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
-    .customer-details {
-      display: flex;
-      gap: 35px;
-      flex-wrap: wrap;
-    }
-
-    /* ITEMS */
-    table.items {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 5px;
-    }
-
-    table.items th,
-    table.items td {
-      border: 1px solid #000;
-      padding: 7px 6px;
-    }
-
-    table.items th {
-      text-align: center;
-      font-weight: bold;
-      background: #f2f2f2;
-    }
-
-    table.items td:nth-child(1) {
-      width: 45px;
-      text-align: center;
-    }
-
-    table.items td:nth-child(3) {
-      width: 60px;
-      text-align: center;
-    }
-
-    table.items td:nth-child(4),
-    table.items td:nth-child(5) {
-      width: 110px;
-      text-align: right;
-    }
-
-    /* TOTALS */
-    .summary {
-      width: 100%;
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 10px;
-    }
-
-    .totals {
-      width: 320px;
-      border: 1px solid #000;
-      border-collapse: collapse;
-    }
-
-    .totals-row {
-      display: flex;
-      border-bottom: 1px solid #000;
-    }
-
-    .totals-row:last-child {
-      border-bottom: none;
-    }
-
-    .totals-row span {
-      padding: 7px 8px;
-    }
-
-    .totals-row span:first-child {
-      flex: 1;
-    }
-
-    .totals-row span:last-child {
-      width: 125px;
-      text-align: right;
-      border-left: 1px solid #000;
-    }
-
-    .grand-total {
-      font-weight: bold;
-      font-size: 15px;
-    }
-
-    /* NOTES */
-    .notes {
-      border: 1px solid #000;
-      padding: 8px 10px;
-      margin-top: 10px;
-    }
-
-    /* SIGNATURE */
-    .signatures {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 55px;
-    }
-
-    .signature {
-      width: 190px;
-      text-align: center;
-      border-top: 1px solid #000;
-      padding-top: 5px;
-    }
-
-    .footer {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 11px;
-    }
-
-    @media print {
-      @page {
-        size: A4;
-        margin: 12mm;
-      }
-
-      body {
-        margin: 0;
-      }
-
-      .invoice {
-        width: 100%;
-        max-width: none;
-        padding: 0;
-      }
-    }
-  </style>
-</head>
-
-<body>
-
-  <div class="invoice">
-
-    <!-- BUSINESS HEADER -->
-
-    <div class="header">
-
-      ${
-        profile.logoUrl
-          ? `<img
-              class="logo"
-              src="${profile.logoUrl}"
-              alt="Logo"
-            />`
-          : ""
-      }
-
-      <div class="company-name">
-        ${profile.companyName || "Zeno"}
-      </div>
-
-      ${
-        addressLines
-          ? `<div class="company-details">
-              ${addressLines}
-            </div>`
-          : ""
-      }
-
-      ${
-        profile.phone
-          ? `<div class="company-details">
-              Phone: ${profile.phone}
-            </div>`
-          : ""
-      }
-
-      ${
-        profile.email
-          ? `<div class="company-details">
-              Email: ${profile.email}
-            </div>`
-          : ""
-      }
-
-      ${
-        profile.website
-          ? `<div class="company-details">
-              ${profile.website}
-            </div>`
-          : ""
-      }
-
-      ${
-        profile.panNo
-          ? `<div class="pan">
-              PAN No.: ${profile.panNo}
-            </div>`
-          : ""
-      }
-
-    </div>
-
-    <div class="invoice-title">
-      SALES INVOICE
-    </div>
-
-
-    <!-- BILL INFORMATION -->
-
-    <table class="bill-info">
-      <tr>
-        <td>
-          <span class="label">Bill No.:</span>
-          ${billNo || ""}
-        </td>
-
-        <td>
-          <span class="label">Date:</span>
-          ${invoiceDate}
-        </td>
-      </tr>
-
-      <tr>
-        <td>
-          <span class="label">Order No.:</span>
-          ${baseOrderId(group.primary.orderId) || ""}
-        </td>
-
-        <td>
-          ${
-            deliveryPartner
-              ? `<span class="label">Delivery:</span>
-                 ${deliveryPartner}`
-              : ""
-          }
-        </td>
-      </tr>
-    </table>
-
-
-    <!-- CUSTOMER -->
-
-    <div class="customer">
-
-      <div class="customer-title">
-        Customer Details
-      </div>
-
-      <div class="customer-details">
-
-        <div>
-          <strong>Name:</strong>
-          ${
-            group.primary.pointOfContact ||
-            "Walk-in Customer"
-          }
-        </div>
-
-        ${
-          group.primary.customerPhone
-            ? `<div>
-                <strong>Phone:</strong>
-                ${group.primary.customerPhone}
-              </div>`
-            : ""
-        }
-
-      </div>
-
-    </div>
-
-
-    <!-- ITEMS -->
-
-    <table class="items">
-
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Particulars</th>
-          <th>Qty.</th>
-          <th>Rate</th>
-          <th>Amount</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        ${rows}
-      </tbody>
-
-    </table>
-
-
-    <!-- TOTALS -->
-
-    <div class="summary">
-
-      <div class="totals">
-
-        <div class="totals-row">
-          <span>Subtotal</span>
-          <span>
-            ${formatMoneyText(subtotalValue)}
-          </span>
-        </div>
-
-        ${
-          discountValue
-            ? `<div class="totals-row">
-                <span>Discount</span>
-                <span>
-                  -${formatMoneyText(discountValue)}
-                </span>
-              </div>`
-            : ""
-        }
-
-        ${
-          deliveryFee
-            ? `<div class="totals-row">
-                <span>Delivery Charge</span>
-                <span>
-                  ${formatMoneyText(deliveryFee)}
-                </span>
-              </div>`
-            : ""
-        }
-
-        <div class="totals-row grand-total">
-          <span>Grand Total</span>
-          <span>
-            ${formatMoneyText(grandTotalValue)}
-          </span>
-        </div>
-
-      </div>
-
-    </div>
-
-
-    <!-- NOTES -->
-
-    ${
-      group.primary.notes || profile.invoiceNote
-        ? `<div class="notes">
-
+    })
+    .join("");
+
+  const addressLines = (profile.address || "")
+    .split(/\n|,/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("<br />");
+
+  const printableHtml = `<!DOCTYPE html>
+    <html>
+      <head>
+        <title>Invoice - ${
+          baseOrderId(group.primary.orderId) || "Order"
+        }</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #1f2937; margin: 24px; }
+          .invoice { max-width: 900px; margin: 0 auto; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #d1d5db; padding-bottom: 20px; margin-bottom: 20px; }
+          .brand { display: flex; align-items: center; gap: 12px; }
+          .brand img { width: 58px; height: 58px; object-fit: cover; border-radius: 10px; border: 1px solid #e5e7eb; }
+          .brand h1 { margin: 0; font-size: 28px; }
+          .brand p { margin: 3px 0 0; color: #6b7280; }
+          .meta { text-align: right; }
+          .meta strong { display: block; margin-bottom: 6px; font-size: 18px; }
+          .meta span { display: block; color: #4b5563; margin-bottom: 2px; }
+          .details { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
+          .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; }
+          .card h3 { margin: 0 0 8px; font-size: 13px; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
+          .card p { margin: 4px 0; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          th, td { border-bottom: 1px solid #e5e7eb; padding: 10px 8px; text-align: left; }
+          th { background: #f3f4f6; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #4b5563; }
+          .totals { margin-top: 18px; width: 320px; margin-left: auto; }
+          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+          .totals-row.total { font-weight: 700; font-size: 18px; }
+          @media print { body { margin: 0; } .invoice { max-width: 100%; } }
+        </style>
+      </head>
+      <body>
+        <div class="invoice">
+          <div class="header">
+            <div class="brand">
+              ${profile.logoUrl ? `<img src="${profile.logoUrl}" alt="Brand logo" />` : ""}
+              <div>
+                <h1>${profile.companyName || "Zeno"}</h1>
+                <p>${profile.website || ""}</p>
+              </div>
+            </div>
+            <div class="meta">
+              <strong>Invoice</strong>
+              <span>Order: ${baseOrderId(group.primary.orderId) || "—"}</span>
+              <span>Bill no: ${billNo}</span>
+              <span>Date: ${invoiceDate}</span>
+            </div>
+          </div>
+          <div class="details">
+            <div class="card">
+              <h3>Company</h3>
+              <p><strong>${profile.companyName || "Zeno"}</strong></p>
+              ${addressLines ? `<p>${addressLines}</p>` : ""}
+              ${profile.phone ? `<p>Phone: ${profile.phone}</p>` : ""}
+              ${profile.panNo ? `<p>PAN: ${profile.panNo}</p>` : ""}
+              ${profile.email ? `<p>Email: ${profile.email}</p>` : ""}
+              ${profile.website ? `<p>Website: ${profile.website}</p>` : ""}
+            </div>
+            <div class="card">
+              <h3>Customer & Logistics</h3>
+              <p><strong>${group.primary.pointOfContact || "Walk-in customer"}</strong></p>
+              ${group.primary.customerPhone ? `<p>Phone: ${group.primary.customerPhone}</p>` : ""}
+              <p style="margin-top: 8px;"><strong>Courier:</strong> ${deliveryPartner}</p>
+              ${group.primary.notes ? `<p>Notes: ${group.primary.notes}</p>` : ""}
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Item</th><th>Qty</th><th>Unit price</th><th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="totals">
+            <div class="totals-row">
+              <span>Subtotal</span>
+              <span>${formatMoneyText(subtotalValue)}</span>
+            </div>
             ${
-              group.primary.notes
-                ? `<strong>Remarks:</strong>
-                   ${group.primary.notes}`
+              discountValue
+                ? `<div class="totals-row">
+                    <span>Discount</span>
+                    <span>-${formatMoneyText(discountValue)}</span>
+                  </div>`
                 : ""
             }
-
             ${
-              profile.invoiceNote
-                ? `<div style="margin-top: 4px;">
-                    ${profile.invoiceNote}
-                   </div>`
+              deliveryFee
+                ? `<div class="totals-row">
+                    <span>Delivery Fee (${deliveryPartner})</span>
+                    <span>${formatMoneyText(deliveryFee)}</span>
+                  </div>`
                 : ""
             }
+            <div class="totals-row total">
+              <span>Total</span>
+              <span>${formatMoneyText(grandTotalValue)}</span>
+            </div>
+          </div>
+          <p style="margin-top: 28px; color: #4b5563;">
+            ${profile.invoiceNote || "Thank you for your business."}
+          </p>
+        </div>
+      </body>
+    </html>`;
 
-          </div>`
-        : ""
+  const invoiceBlob = new Blob([printableHtml], { type: "text/html" });
+  const invoiceUrl = URL.createObjectURL(invoiceBlob);
+  const invoiceWindow = window.open(
+    invoiceUrl,
+    "_blank",
+    "width=900,height=1000,noopener,noreferrer"
+  );
+
+  if (!invoiceWindow) {
+    URL.revokeObjectURL(invoiceUrl);
+    alert("Please allow pop-ups to print the invoice.");
+    return;
+  }
+
+  setTimeout(() => {
+    try {
+      invoiceWindow.focus();
+      invoiceWindow.print();
+    } catch {
+      alert("Print preview was blocked. Please retry with pop-ups enabled.");
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(invoiceUrl), 1000);
     }
-
-
-    <!-- SIGNATURES -->
-
-    <div class="signatures">
-
-      <div class="signature">
-        Customer Signature
-      </div>
-
-      <div class="signature">
-        For ${profile.companyName || "Zeno"}
-      </div>
-
-    </div>
-
-
-    <div class="footer">
-      Thank you for your business.
-    </div>
-
-  </div>
-
-</body>
-</html>`;
-
-    const invoiceBlob = new Blob(
-      [printableHtml],
-      { type: "text/html" },
-    );
-
-    const invoiceUrl =
-      URL.createObjectURL(invoiceBlob);
-
-    const invoiceWindow = window.open(
-      invoiceUrl,
-      "_blank",
-      "width=900,height=1000,noopener,noreferrer",
-    );
-
-    if (!invoiceWindow) {
-      URL.revokeObjectURL(invoiceUrl);
-
-      alert(
-        "Please allow pop-ups to print the invoice.",
-      );
-
-      return;
-    }
-
-    setTimeout(() => {
-      try {
-        invoiceWindow.focus();
-        invoiceWindow.print();
-      } catch {
-        alert(
-          "Print preview was blocked. Please retry with pop-ups enabled.",
-        );
-      } finally {
-        setTimeout(
-          () =>
-            URL.revokeObjectURL(
-              invoiceUrl,
-            ),
-          1000,
-        );
-      }
-    }, 250);
-  };
+  }, 250);
+};
 
   // ---------------------------------------------------------
   // EDIT
   // ---------------------------------------------------------
 
   const startEdit = (group) => {
-    setEditingGroup(group);
-    setOrderDiscount("");
+  setEditingGroup(group);
+  setOrderDiscount("");
 
-    // Find the line that actually owns the manual bill number.
-    const billSource =
-      group.lines.find(
-        (line) => Boolean(line.billNo),
-      ) || group.primary;
+  const billSource =
+    group.lines.find((line) => line.billNo) || group.primary;
 
-    const rawDate =
-      group.primary.orderDate ||
-      todayStr();
+  // Extract YYYY-MM-DD format for HTML date input compatibility
+  const rawDate = group.primary.orderDate || todayStr();
+  const formattedDate = rawDate.includes("T") 
+    ? rawDate.split("T")[0] 
+    : rawDate;
 
-    const formattedDate =
-      typeof rawDate === "string" &&
-      rawDate.includes("T")
-        ? rawDate.split("T")[0]
-        : rawDate;
+  setOrderForm({
+    orderId: baseOrderId(group.primary.orderId),
+    billNo: billSource.billNo || "",
+    billIssued: Boolean(billSource.billNo || billSource.billIssued),
+    status: group.primary.status,
+    paidStatus: group.primary.paidStatus,
+    pointOfContact: group.primary.pointOfContact || "",
+    customerPhone: group.primary.customerPhone || "",
+    orderDate: formattedDate,
+    notes: group.primary.notes || "",
+    deliveryPartner: group.deliveryLine?.deliveryPartner || "",
+    deliveryFeeCharged:
+      group.deliveryLine?.deliveryFeeCharged === null ||
+      group.deliveryLine?.deliveryFeeCharged === undefined
+        ? ""
+        : group.deliveryLine.deliveryFeeCharged,
+    deliveryCost: group.deliveryLine?.deliveryCost || "",
+  });
 
-    setOrderForm({
-      orderId: baseOrderId(
-        group.primary.orderId,
-      ),
+  setLines(
+    group.lines.map((l) => ({
+      _id: l._id,
+      product: l.product?._id || l.product || "",
+      color: l.color || "",
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+      priceTouched: true,
+    }))
+  );
 
-      // Load the existing manual bill number.
-      billNo: billSource.billNo || "",
-
-      status:
-        group.primary.status ||
-        "In progress",
-
-      paidStatus:
-        group.primary.paidStatus ||
-        "COD",
-
-      pointOfContact:
-        group.primary.pointOfContact || "",
-
-      customerPhone:
-        group.primary.customerPhone || "",
-
-      orderDate: formattedDate,
-
-      notes:
-        group.primary.notes || "",
-
-      deliveryPartner:
-        group.deliveryLine?.deliveryPartner ||
-        "",
-
-      deliveryFeeCharged:
-        group.deliveryLine
-          ?.deliveryFeeCharged === null ||
-        group.deliveryLine
-          ?.deliveryFeeCharged === undefined
-          ? ""
-          : group.deliveryLine
-              .deliveryFeeCharged,
-
-      deliveryCost:
-        group.deliveryLine?.deliveryCost ===
-          null ||
-        group.deliveryLine?.deliveryCost ===
-          undefined
-          ? ""
-          : group.deliveryLine
-              .deliveryCost,
-    });
-
-    setLines(
-      group.lines.map((l) => ({
-        _id: l._id,
-        product:
-          l.product?._id ||
-          l.product ||
-          "",
-        color: l.color || "",
-        quantity: l.quantity,
-        unitPrice: l.unitPrice,
-        lineTotal: l.lineTotal,
-        priceTouched: true,
-      })),
-    );
-
-    setShowForm(true);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
+  setShowForm(true);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
   const cancelForm = () => {
     setShowForm(false);
     setEditingGroup(null);
@@ -1343,7 +888,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     ]);
 
     setOrderDiscount("");
-    setDeliveryMenuOpen(false);
   };
 
   const resolveOrderId = () => {
@@ -1446,14 +990,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     setSaving(true);
 
     try {
-      /*
-       * IMPORTANT:
-       * billNo is NOT included in this shared object.
-       *
-       * This prevents the same bill number from being
-       * automatically copied to every product line.
-       */
-
       const shared = {
         status:
           orderForm.status,
@@ -1479,18 +1015,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           undefined,
       };
 
-      /*
-       * Manual bill number.
-       *
-       * Empty = null.
-       * Non-empty = exactly what the user typed.
-       *
-       * No automatic BILL number is generated.
-       */
-      const manualBillNo =
-        (orderForm.billNo || "").trim() ||
-        null;
-
       const discount =
         Number(orderDiscount) || 0;
 
@@ -1507,7 +1031,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             l.priceTouched ||
             (l.lineTotal !== "" &&
               l.lineTotal !== null &&
-              l.lineTotal !== undefined)
+              l.lineTotal !==
+                undefined)
               ? Number(
                   l.lineTotal || 0,
                 )
@@ -1559,213 +1084,135 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       // EDITING EXISTING ORDER
       // -----------------------------------------------------
 
-     if (editingGroup) {
-  const currentIds = new Set(
-    lines
-      .map((l) => l._id)
-      .filter(Boolean),
-  );
-
-  // Delete lines that were removed from the editor.
-  const removedLines = editingGroup.lines.filter(
-    (l) => !currentIds.has(l._id),
-  );
-
-  await Promise.all(
-    removedLines.map((l) => deleteSale(l._id)),
-  );
-
-  /*
-   * IMPORTANT:
-   *
-   * Preserve the existing orderId of every existing line.
-   *
-   * Example:
-   *
-   * A-JSL1
-   * A-JSL1-line-2
-   * A-JSL1-line-3
-   *
-   * Editing must NOT regenerate these IDs based on
-   * array position because the database order is not
-   * guaranteed to match the editor's position.
-   */
-
-  const existingOrderIds = new Set(
-    editingGroup.lines
-      .map((line) => line.orderId)
-      .filter(Boolean),
-  );
-
-  /*
-   * Find the existing line that owns the base order ID.
-   */
-  const baseLine = editingGroup.lines.find(
-    (line) =>
-      line.orderId === baseId,
-  );
-
-  /*
-   * Find the line that owns the manual bill number.
-   */
-  const existingBillLine =
-    editingGroup.lines.find(
-      (line) => Boolean(line.billNo),
-    );
-
-  const existingBillId =
-    existingBillLine?._id || null;
-
-  const existingBillStillPresent =
-    existingBillId &&
-    lines.some(
-      (line) =>
-        line._id === existingBillId,
-    );
-
-  /*
-   * Preserve the original bill owner if it still exists.
-   * Otherwise the first remaining line gets the bill.
-   */
-  const billOwnerId =
-    existingBillStillPresent
-      ? existingBillId
-      : null;
-
-  /*
-   * Find the next available line number for NEW lines.
-   */
-  let nextLineNumber = 2;
-
-  while (
-    existingOrderIds.has(
-      `${baseId}-line-${nextLineNumber}`,
-    )
-  ) {
-    nextLineNumber++;
-  }
-
-  const linePromises = lines.map(
-    (line, i) => {
-      /*
-       * EXISTING LINE
-       *
-       * Always preserve its current database orderId.
-       */
-      let lineOrderId;
-
-      if (line._id) {
-        const originalLine =
-          editingGroup.lines.find(
-            (oldLine) =>
-              oldLine._id === line._id,
+      if (editingGroup) {
+        const currentIds =
+          new Set(
+            lines
+              .map((l) => l._id)
+              .filter(Boolean),
           );
 
-        lineOrderId =
-          originalLine?.orderId ||
-          (i === 0
-            ? baseId
-            : `${baseId}-line-${i + 1}`);
-      }
-
-      /*
-       * NEW LINE
-       *
-       * Give it a new unique suffix.
-       */
-      else {
-        lineOrderId =
-          i === 0 && !baseLine
-            ? baseId
-            : `${baseId}-line-${nextLineNumber}`;
-
-        nextLineNumber++;
-
-        while (
-          existingOrderIds.has(lineOrderId)
-        ) {
-          lineOrderId =
-            `${baseId}-line-${nextLineNumber}`;
-
-          nextLineNumber++;
-        }
-      }
-
-      /*
-       * Determine bill ownership.
-       */
-      const isBillOwner =
-        billOwnerId
-          ? line._id === billOwnerId
-          : !existingBillId && i === 0;
-
-      const linePayload = {
-        ...shared,
-
-        billNo: isBillOwner
-          ? manualBillNo
-          : null,
-
-        /*
-         * CRITICAL:
-         * Existing lines retain their original orderId.
-         */
-        orderId: lineOrderId,
-
-        product:
-          line.product,
-
-        color:
-          line.color ||
-          undefined,
-
-        quantity:
-          Number(line.quantity),
-
-        unitPrice:
-          Number(line.unitPrice),
-
-        lineTotal:
-          finalLineTotals[i],
-
-        deliveryPartner:
-          i === 0
-            ? orderForm.deliveryPartner ||
-              undefined
-            : undefined,
-
-        deliveryFeeCharged:
-          i === 0
-            ? orderForm.deliveryFeeCharged === ""
-              ? 0
-              : Number(
-                  orderForm.deliveryFeeCharged,
-                )
-            : null,
-
-        deliveryCost:
-          i === 0
-            ? orderForm.deliveryCost === ""
-              ? 0
-              : Number(
-                  orderForm.deliveryCost,
-                )
-            : 0,
-      };
-
-      return line._id
-        ? updateSale(
-            line._id,
-            linePayload,
-          )
-        : createSale(
-            linePayload,
+        const removedLines =
+          editingGroup.lines.filter(
+            (l) =>
+              !currentIds.has(
+                l._id,
+              ),
           );
-    },
-  );
 
-  await Promise.all(linePromises);
-}
+        await Promise.all(
+          removedLines.map((l) =>
+            deleteSale(l._id),
+          ),
+        );
+
+        const linePromises =
+          lines.map((line, i) => {
+            const lineOrderId =
+              i === 0
+                ? baseId
+                : `${baseId}-line-${i + 1}`;
+
+            const linePayload = {
+              ...shared,
+
+              /*
+               * A bill number belongs to only one Sale document.
+               * For an edited multi-line order, preserve the line
+               * that currently owns the bill number.
+               */
+              billIssued:
+                Boolean(orderForm.billIssued) &&
+                (
+                  (editingGroup.lines.findIndex(
+                    (l) => Boolean(l.billNo)
+                  ) === i) ||
+                  (
+                    editingGroup.lines.every(
+                      (l) => !l.billNo
+                    ) && i === 0
+                  )
+                ),
+
+              billNo:
+                Boolean(orderForm.billIssued) &&
+                (
+                  (editingGroup.lines.findIndex(
+                    (l) => Boolean(l.billNo)
+                  ) === i) ||
+                  (
+                    editingGroup.lines.every(
+                      (l) => !l.billNo
+                    ) && i === 0
+                  )
+                )
+                  ? ((orderForm.billNo || "").trim() || undefined)
+                  : undefined,
+
+              orderId:
+                lineOrderId,
+
+              product:
+                line.product,
+
+              color:
+                line.color ||
+                undefined,
+
+              quantity:
+                Number(
+                  line.quantity,
+                ),
+
+              unitPrice:
+                Number(
+                  line.unitPrice,
+                ),
+
+              lineTotal:
+                finalLineTotals[i],
+
+              deliveryPartner:
+                i === 0
+                  ? orderForm.deliveryPartner ||
+                    undefined
+                  : undefined,
+
+              deliveryFeeCharged:
+                i === 0
+                  ? orderForm.deliveryFeeCharged ===
+                    ""
+                    ? 0
+                    : Number(
+                        orderForm.deliveryFeeCharged,
+                      )
+                  : null,
+
+              deliveryCost:
+                i === 0
+                  ? orderForm.deliveryCost ===
+                    ""
+                    ? 0
+                    : Number(
+                        orderForm.deliveryCost,
+                      )
+                  : 0,
+            };
+
+            return line._id
+              ? updateSale(
+                  line._id,
+                  linePayload,
+                )
+              : createSale(
+                  linePayload,
+                );
+          });
+
+        await Promise.all(
+          linePromises,
+        );
+      }
 
       // -----------------------------------------------------
       // CREATE NEW ORDER
@@ -1777,15 +1224,13 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             const linePayload = {
               ...shared,
 
-              /*
-               * NEW ORDER:
-               * first line owns the manual bill number.
-               * all other lines have no bill number.
-               */
+              billIssued:
+                Boolean(orderForm.billIssued) && i === 0,
+
               billNo:
-                i === 0
-                  ? manualBillNo
-                  : null,
+                Boolean(orderForm.billIssued) && i === 0
+                  ? ((orderForm.billNo || "").trim() || undefined)
+                  : undefined,
 
               orderId:
                 i === 0
@@ -1853,7 +1298,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
       setPage(1);
 
-      await load();
+      load();
     } catch (err) {
       alert(
         err.response?.data?.message ||
@@ -1864,411 +1309,365 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     }
   };
 
-  // ---------------------------------------------------------
-  // TABLE COLUMNS
-  // ---------------------------------------------------------
+// ---------------------------------------------------------
+// TABLE COLUMNS
+// ---------------------------------------------------------
 
-  const columns = [
-    // -------------------------------------------------------
-    // CHECKBOX
-    // -------------------------------------------------------
+const columns = [
+  // -------------------------------------------------------
+  // CHECKBOX
+  // -------------------------------------------------------
 
-    {
-      key: "select",
+  {
+    key: "select",
 
-      header: (
-        <input
-          type="checkbox"
-          checked={allVisibleSelected}
-          ref={(el) => {
-            if (el) {
-              el.indeterminate =
-                someVisibleSelected &&
-                !allVisibleSelected;
+    header: (
+      <input
+        type="checkbox"
+        checked={allVisibleSelected}
+        ref={(el) => {
+          if (el) {
+            el.indeterminate =
+              someVisibleSelected &&
+              !allVisibleSelected;
+          }
+        }}
+        onChange={toggleSelectAll}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select all orders"
+        className="h-4 w-4 cursor-pointer accent-current"
+      />
+    ),
+
+    render: (r) => (
+      <input
+        type="checkbox"
+        checked={selectedOrders.has(r.key)}
+        onChange={() =>
+          toggleOrderSelection(r.key)
+        }
+        onClick={(e) => e.stopPropagation()}
+        aria-label={`Select order ${
+          baseOrderId(r.primary.orderId) || ""
+        }`}
+        className="h-4 w-4 cursor-pointer accent-current"
+      />
+    ),
+  },
+
+  // -------------------------------------------------------
+  // DATE
+  // -------------------------------------------------------
+
+ {
+  key: "date",
+  header: "Date",
+  render: (r) => {
+    const rawDate = r.primary.orderDate || r.primary.createdAt;
+    const formattedDate = rawDate
+      ? new Date(rawDate).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "—";
+
+    return (
+      <div className="font-semibold min-w-[120px] max-w-[150px] text-sm text-gray-700">
+        {formattedDate}
+      </div>
+    );
+  },
+},
+  // -------------------------------------------------------
+  // ORDER + CUSTOMER
+  // -------------------------------------------------------
+
+  {
+  key: "orderCustomer",
+  header: "Order / Customer",
+  render: (r) => (
+    <div className="min-w-[180px] max-w-[230px]">
+      {/* Order ID + Bill No */}
+      <div className="flex items-center gap-2 mb-0.5">
+        <span className="font-normal text-sm text-gray-600">
+          {baseOrderId(r.primary.orderId) || "—"}
+        </span>
+
+        {r.primary.billNo && (
+          <span className="text-[10px] text-gray-500 border-gray-700 border rounded-full px-2 py-0.6 font-medium">
+            {r.primary.billNo}
+          </span>
+        )}
+      </div>
+
+      {/* Customer Name */}
+      <div className="font-semibold text-gray-900 truncate">
+        {r.primary.pointOfContact || "Walk-in customer"}
+      </div>
+
+      {/* Phone */}
+      {r.primary.customerPhone && (
+        <div className="text-xs text-gray-500 truncate">
+          {r.primary.customerPhone}
+        </div>
+      )}
+    </div>
+  ),
+},
+  // -------------------------------------------------------
+  // PRODUCTS
+  // -------------------------------------------------------
+
+  {
+    key: "product",
+
+    header: "Products",
+
+    render: (r) => (
+      <div className="min-w-[180px] max-w-[240px] space-y-0.5">
+        {r.lines.map((l, idx) => (
+          <div
+            key={
+              l._id ||
+              `${l.product?._id || l.product}-${idx}`
             }
-          }}
-          onChange={toggleSelectAll}
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          aria-label="Select all orders"
-          className="h-4 w-4 cursor-pointer accent-current"
-        />
-      ),
-
-      render: (r) => (
-        <input
-          type="checkbox"
-          checked={selectedOrders.has(
-            r.key,
-          )}
-          onChange={() =>
-            toggleOrderSelection(
-              r.key,
-            )
-          }
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          aria-label={`Select order ${
-            baseOrderId(
-              r.primary.orderId,
-            ) || ""
-          }`}
-          className="h-4 w-4 cursor-pointer accent-current"
-        />
-      ),
-    },
-
-    // -------------------------------------------------------
-    // DATE
-    // -------------------------------------------------------
-
-    {
-      key: "date",
-
-      header: "Date",
-
-      render: (r) => {
-        const rawDate =
-          r.primary.orderDate ||
-          r.primary.createdAt;
-
-        const formattedDate = rawDate
-          ? new Date(
-              rawDate,
-            ).toLocaleDateString(
-              "en-US",
-              {
-                month: "short",
-                day: "numeric",
-              },
-            )
-          : "—";
-
-        return (
-          <div className="font-semibold min-w-[5px] max-w-[150px] text-sm text-gray-700">
-            {formattedDate}
-          </div>
-        );
-      },
-    },
-
-    // -------------------------------------------------------
-    // ORDER + CUSTOMER
-    // -------------------------------------------------------
-
-    {
-      key: "orderCustomer",
-
-      header: "Order / Customer",
-
-      render: (r) => (
-        <div className="min-w-[180px] max-w-[230px]">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="font-normal text-sm text-gray-600">
-              {baseOrderId(
-                r.primary.orderId,
-              ) || "—"}
+            className="text-sm truncate"
+            title={`${l.product?.name || "Product"}${
+              l.color ? ` (${l.color})` : ""
+            } ×${l.quantity}`}
+          >
+            <span className="font-medium">
+              {l.product?.name || "Product"}
             </span>
 
-            {r.primary.billNo && (
-              <span className="text-[10px] text-gray-500 border-gray-700 border rounded-full px-2 py-0.6 font-medium">
-                {r.primary.billNo}
-              </span>
-            )}
-          </div>
-
-          <div className="font-semibold text-gray-900 truncate">
-            {r.primary.pointOfContact ||
-              "Walk-in customer"}
-          </div>
-
-          {r.primary.customerPhone && (
-            <div className="text-xs text-gray-500 truncate">
-              {r.primary.customerPhone}
-            </div>
-          )}
-        </div>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // PRODUCTS
-    // -------------------------------------------------------
-
-    {
-      key: "product",
-
-      header: "Products",
-
-      render: (r) => (
-        <div className="min-w-[180px] max-w-[240px] space-y-0.5">
-          {r.lines.map((l, idx) => (
-            <div
-              key={
-                l._id ||
-                `${l.product?._id || l.product}-${idx}`
-              }
-              className="text-sm truncate"
-              title={`${
-                l.product?.name ||
-                "Product"
-              }${
-                l.color
-                  ? ` (${l.color})`
-                  : ""
-              } ×${l.quantity}`}
-            >
-              <span className="font-medium">
-                {l.product?.name ||
-                  "Product"}
-              </span>
-
-              {l.color && (
-                <span className="text-muted">
-                  {" "}
-                  ({l.color})
-                </span>
-              )}
-
-              <span className="text-muted font-medium">
+            {l.color && (
+              <span className="text-muted">
                 {" "}
-                ×{l.quantity}
+                ({l.color})
               </span>
-            </div>
-          ))}
+            )}
 
-          {r.lines.length > 1 && (
-            <div className="text-[10px] text-muted">
-              {r.lines.length} products
-            </div>
-          )}
-        </div>
-      ),
-    },
+            <span className="text-muted font-medium">
+              {" "}
+              ×{l.quantity}
+            </span>
+          </div>
+        ))}
 
-    // -------------------------------------------------------
-    // GRAND TOTAL
-    // -------------------------------------------------------
+        {r.lines.length > 1 && (
+          <div className="text-[10px] text-muted">
+            {r.lines.length} products
+          </div>
+        )}
+      </div>
+    ),
+  },
 
-    {
-      key: "total",
+  // -------------------------------------------------------
+  // GRAND TOTAL
+  // -------------------------------------------------------
 
-      header: "Total",
+  {
+    key: "total",
 
-      render: (r) => {
-        const delivery =
-          r.deliveryLine
-            ?.deliveryFeeCharged || 0;
+    header: "Total",
 
-        return (
-          <div className="whitespace-nowrap">
-            <div className="font-semibold">
-              {formatMoney(
-                r.lineTotal +
-                  delivery,
-              )}
-            </div>
+    render: (r) => {
+      const delivery =
+        r.deliveryLine?.deliveryFeeCharged || 0;
 
-            {delivery > 0 && (
-              <div className="inline-flex items-center gap-1 text-[10px] text-muted">
-                <Truck className="w-3 h-3 text-muted shrink-0" />
-                <span>
-                  {delivery}
-                </span>
-              </div>
+      return (
+        <div className="whitespace-nowrap">
+          <div className="font-semibold">
+            {formatMoney(
+              r.lineTotal + delivery
             )}
           </div>
-        );
-      },
-    },
 
-    // -------------------------------------------------------
-    // STATUS
-    // -------------------------------------------------------
-
-    {
-      key: "status",
-
-      header: "Status",
-
-      render: (r) => (
-        <select
-          value={r.primary.status}
-          onChange={(e) =>
-            handleStatusChange(
-              r,
-              e.target.value,
-            )
-          }
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
-            STATUS_TONE[
-              r.primary.status
-            ] ||
-            "bg-paper text-muted"
-          }`}
-        >
-          {STATUSES.map((s) => (
-            <option
-              key={s}
-              className="bg-paper text-ink"
-            >
-              {s}
-            </option>
-          ))}
-        </select>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // PAYMENT
-    // -------------------------------------------------------
-
-    {
-      key: "payment",
-
-      header: "Payment",
-
-      render: (r) => (
-        <select
-          value={
-            r.primary.paidStatus
-          }
-          onChange={(e) =>
-            handlePaidStatusChange(
-              r,
-              e.target.value,
-            )
-          }
-          onClick={(e) =>
-            e.stopPropagation()
-          }
-          className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
-            PAYMENT_TONE[
-              r.primary.paidStatus
-            ] ||
-            "bg-paper text-muted"
-          }`}
-        >
-          {PAID_STATUSES.map((s) => (
-            <option
-              key={s}
-              className="bg-paper text-ink"
-            >
-              {s}
-            </option>
-          ))}
-        </select>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // DELIVERY
-    // -------------------------------------------------------
-
-    {
-      key: "delivery",
-
-      header: "Delivery",
-
-      render: (r) => {
-        const partner =
-          r.deliveryLine
-            ?.deliveryPartner;
-
-        const cost =
-          r.deliveryLine
-            ?.deliveryCost;
-
-        return (
-          <div className="min-w-[90px]">
-            <div className="font-medium">
-              {partner || "—"}
-            </div>
-
-            {cost ? (
-              <div className="text-[10px] text-muted">
-                <Truck className="w-3 h-3 text-muted shrink-0 inline-block mr-1" />
-                {cost}
-              </div>
-            ) : null}
-          </div>
-        );
-      },
-    },
-
-    // -------------------------------------------------------
-    // NOTES
-    // -------------------------------------------------------
-
-    {
-      key: "notes",
-
-      header: "Notes",
-
-      render: (r) => (
-        <span
-          className="block max-w-[160px] truncate text-xs text-muted"
-          title={
-            r.primary.notes || ""
-          }
-        >
-          {r.primary.notes || "—"}
-        </span>
-      ),
-    },
-
-    // -------------------------------------------------------
-    // ACTIONS
-    // -------------------------------------------------------
-
-    {
-      key: "actions",
-
-      header: "",
-
-      render: (r) => (
-        <div className="flex gap-2 whitespace-nowrap">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              printInvoice(r);
-            }}
-            className="text-muted hover:text-ink"
-            title="Print invoice"
-          >
-            <Printer size={15} />
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              startEdit(r);
-            }}
-            className="text-muted hover:text-green-700"
-            title="Edit order"
-          >
-            <Pencil size={15} />
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(r);
-            }}
-            className="text-muted hover:text-red-700"
-            title="Delete order"
-          >
-            <Trash2 size={15} />
-          </button>
+          {delivery > 0 && (
+  <div className="inline-flex items-center gap-1 text-[10px] text-muted">
+    <Truck className="w-3 h-3 text-muted shrink-0" />
+    <span>{(delivery)}</span>
+  </div>
+)}
         </div>
-      ),
+      );
     },
-  ];
+  },
+
+  // -------------------------------------------------------
+  // STATUS
+  // -------------------------------------------------------
+
+  {
+    key: "status",
+
+    header: "Status",
+
+    render: (r) => (
+      <select
+        value={r.primary.status}
+        onChange={(e) =>
+          handleStatusChange(
+            r,
+            e.target.value
+          )
+        }
+        onClick={(e) => e.stopPropagation()}
+        className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
+          STATUS_TONE[r.primary.status] ||
+          "bg-paper text-muted"
+        }`}
+      >
+        {STATUSES.map((s) => (
+          <option
+            key={s}
+            className="bg-paper text-ink"
+          >
+            {s}
+          </option>
+        ))}
+      </select>
+    ),
+  },
+
+  // -------------------------------------------------------
+  // PAYMENT
+  // -------------------------------------------------------
+
+  {
+    key: "payment",
+
+    header: "Payment",
+
+    render: (r) => (
+      <select
+        value={r.primary.paidStatus}
+        onChange={(e) =>
+          handlePaidStatusChange(
+            r,
+            e.target.value
+          )
+        }
+        onClick={(e) => e.stopPropagation()}
+        className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
+          PAYMENT_TONE[
+            r.primary.paidStatus
+          ] || "bg-paper text-muted"
+        }`}
+      >
+        {PAID_STATUSES.map((s) => (
+          <option
+            key={s}
+            className="bg-paper text-ink"
+          >
+            {s}
+          </option>
+        ))}
+      </select>
+    ),
+  },
+
+  // -------------------------------------------------------
+  // DELIVERY
+  // -------------------------------------------------------
+
+  {
+    key: "delivery",
+
+    header: "Delivery",
+
+    render: (r) => {
+      const partner =
+        r.deliveryLine?.deliveryPartner;
+
+      const cost =
+        r.deliveryLine?.deliveryCost;
+
+      return (
+        <div className="min-w-[90px]">
+          <div className="font-medium">
+            {partner || "—"}
+          </div>
+
+          {cost ? (
+            <div className="text-[10px] text-muted">
+            <Truck className="w-3 h-3 text-muted shrink-0 inline-block mr-1" />
+              {(cost)}
+            </div>
+          ) : null}
+        </div>
+      );
+    },
+  },
+
+  // -------------------------------------------------------
+  // NOTES
+  // -------------------------------------------------------
+
+  {
+    key: "notes",
+
+    header: "Notes",
+
+    render: (r) => (
+      <span
+        className="block max-w-[160px] truncate text-xs text-muted"
+        title={r.primary.notes || ""}
+      >
+        {r.primary.notes || "—"}
+      </span>
+    ),
+  },
+
+  // -------------------------------------------------------
+  // ACTIONS
+  // -------------------------------------------------------
+
+  {
+    key: "actions",
+
+    header: "",
+
+    render: (r) => (
+      <div className="flex gap-2 whitespace-nowrap">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            printInvoice(r);
+          }}
+          className="text-muted hover:text-ink"
+          title="Print invoice"
+        >
+          <Printer size={15} />
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            startEdit(r);
+          }}
+          className="text-muted hover:text-green-700"
+          title="Edit order"
+        >
+          <Pencil size={15} />
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(r);
+          }}
+          className="text-muted hover:text-red-700"
+          title="Delete order"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    ),
+  },
+];
 
   // ---------------------------------------------------------
   // RETURN
@@ -2368,20 +1767,80 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
 
-            <input
-              placeholder="Bill no"
-              value={
-                orderForm.billNo
-              }
-              onChange={(e) =>
-                setOrderForm({
-                  ...orderForm,
-                  billNo:
-                    e.target.value,
-                })
-              }
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
-            />
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-muted">
+                  Bill
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    /*
+                     * Once an existing bill has been issued,
+                     * don't allow the user to turn it off.
+                     * The backend also enforces this.
+                     */
+                    if (editingGroup && orderForm.billIssued) {
+                      return;
+                    }
+
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      billIssued: !prev.billIssued,
+                      billNo: !prev.billIssued
+                        ? prev.billNo
+                        : "",
+                    }));
+                  }}
+                  disabled={
+                    Boolean(editingGroup) &&
+                    Boolean(orderForm.billIssued)
+                  }
+                  aria-label={
+                    orderForm.billIssued
+                      ? "Bill issued"
+                      : "Bill not issued"
+                  }
+                  className={`relative h-5 w-9 rounded-full transition-colors ${
+                    orderForm.billIssued
+                      ? "bg-moss"
+                      : "bg-gray-300"
+                  } ${
+                    editingGroup && orderForm.billIssued
+                      ? "cursor-not-allowed opacity-80"
+                      : "cursor-pointer"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                      orderForm.billIssued
+                        ? "translate-x-4"
+                        : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {orderForm.billIssued ? (
+                <input
+                  placeholder="INV-2083/84-0001"
+                  value={orderForm.billNo}
+                  onChange={(e) =>
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      billNo:
+                        e.target.value.toUpperCase(),
+                    }))
+                  }
+                  className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                />
+              ) : (
+                <div className="px-3 py-2 text-sm bg-paper/60 rounded-md border border-line text-muted">
+                  No bill
+                </div>
+              )}
+            </div>
 
             <select
               value={
@@ -2978,7 +2437,544 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           SALES TABLE
       --------------------------------------------------- */}
 
-      <div className="w-full overflow-x-auto min-w-full">
+      {/* ---------------------------------------------------
+          MOBILE SALES LIST
+          Simplified stacked cards for phones.
+          No horizontal table scrolling; the order list scrolls vertically.
+   {/* ---------------------------------------------------
+    MOBILE SALES LIST
+--------------------------------------------------- */}
+
+<div className="md:hidden space-y-2">
+
+  {/* MOBILE SEARCH + FILTERS */}
+  <div className="space-y-2">
+    <input
+      type="text"
+      value={search}
+      onChange={(e) => {
+        setSearch(e.target.value);
+        setPage(1);
+      }}
+      placeholder="Search order, customer, phone, product..."
+      className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+    />
+
+    <div className="grid grid-cols-2 gap-2">
+      <input
+        type="date"
+        value={fromDate}
+        onChange={(e) => {
+          setFromDate(e.target.value);
+          setPage(1);
+        }}
+        className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+      />
+
+      <input
+        type="date"
+        value={toDate}
+        onChange={(e) => {
+          setToDate(e.target.value);
+          setPage(1);
+        }}
+        className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+      />
+
+      <select
+        value={status}
+        onChange={(e) => {
+          setStatus(e.target.value);
+          setPage(1);
+        }}
+        className="col-span-2 w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+      >
+        <option value="">All Status</option>
+
+        {STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  {/* SELECT ALL / BULK STATUS */}
+  <div className="flex items-center justify-between gap-2 py-1">
+
+    <label className="flex items-center gap-2 text-xs text-muted">
+      <input
+        type="checkbox"
+        checked={allVisibleSelected}
+        ref={(el) => {
+          if (el) {
+            el.indeterminate =
+              someVisibleSelected &&
+              !allVisibleSelected;
+          }
+        }}
+        onChange={toggleSelectAll}
+        className="h-4 w-4 cursor-pointer accent-current"
+      />
+
+      Select all
+    </label>
+
+    <div className="flex items-center gap-1.5">
+
+      {selectedOrders.size > 0 && (
+        <>
+          <span className="text-[10px] text-muted">
+            {selectedOrders.size} selected
+          </span>
+
+          <select
+            value={bulkStatus}
+            onChange={(e) => {
+              const value = e.target.value;
+
+              setBulkStatus(value);
+
+              if (value) {
+                handleBulkStatusChange(value);
+              }
+            }}
+            disabled={bulkUpdating}
+            className="text-[11px] bg-paper rounded-md border border-line px-2 py-1 disabled:opacity-50"
+          >
+            <option value="">
+              {bulkUpdating
+                ? "Updating..."
+                : "Change status"}
+            </option>
+
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={clearSelection}
+            disabled={bulkUpdating}
+            className="text-[10px] text-muted hover:text-ink"
+          >
+            Clear
+          </button>
+        </>
+      )}
+
+      <span className="text-[10px] text-muted">
+        {groupedSales.length} orders
+      </span>
+    </div>
+  </div>
+
+  {/* VERTICAL SCROLLING ORDER LIST */}
+  <div
+    className="max-h-[calc(100vh-250px)] overflow-y-auto overflow-x-hidden space-y-1.5 pr-1 overscroll-contain"
+  >
+
+    {groupedSales.map((r) => {
+      const delivery =
+        Number(
+          r.deliveryLine?.deliveryFeeCharged
+        ) || 0;
+
+      const total =
+        Number(r.lineTotal || 0) +
+        delivery;
+
+      const billNo =
+        r.lines.find((l) => l.billNo)?.billNo ||
+        "";
+
+      const rawDate =
+        r.primary.orderDate ||
+        r.primary.createdAt;
+
+      const formattedDate = rawDate
+        ? new Date(rawDate).toLocaleDateString(
+            "en-US",
+            {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }
+          )
+        : "—";
+
+      const customer =
+        r.primary.pointOfContact ||
+        "Walk-in customer";
+
+      const phone =
+        r.primary.customerPhone;
+
+      const partner =
+        r.deliveryLine?.deliveryPartner;
+
+      const deliveryCost =
+        Number(
+          r.deliveryLine?.deliveryCost
+        ) || 0;
+
+      const isSelected =
+        selectedOrders.has(r.key);
+
+      return (
+        <div
+          key={r.key}
+          className={`bg-card border rounded-md px-2.5 py-2 shadow-sm overflow-hidden ${
+            isSelected
+              ? "border-moss"
+              : "border-line"
+          }`}
+        >
+
+          {/* TOP ROW */}
+          <div className="flex items-start gap-2">
+
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() =>
+                toggleOrderSelection(r.key)
+              }
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              aria-label={`Select order ${
+                baseOrderId(
+                  r.primary.orderId
+                ) || ""
+              }`}
+              className="h-4 w-4 mt-0.5 shrink-0 cursor-pointer accent-current"
+            />
+
+            <div className="min-w-0 flex-1">
+
+              <div className="flex items-center justify-between gap-2">
+
+                <div className="min-w-0">
+
+                  <div className="flex items-center gap-1.5">
+
+                    <span className="font-semibold text-xs text-ink truncate">
+                      {baseOrderId(
+                        r.primary.orderId
+                      ) || "—"}
+                    </span>
+
+                    <span className="text-[9px] text-muted shrink-0">
+                      {formattedDate}
+                    </span>
+
+                  </div>
+
+                  {/* BILL BELOW ORDER ID */}
+                  {billNo && (
+                    <div className="text-[9px] text-muted leading-3">
+                      Bill: {billNo}
+                    </div>
+                  )}
+
+                </div>
+
+                <div className="text-right shrink-0">
+
+                  <div className="text-[9px] text-muted">
+                    Total
+                  </div>
+
+                  <div className="font-semibold text-xs">
+                    {formatMoney(total)}
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          {/* CUSTOMER */}
+          <div className="ml-6 mt-1">
+
+            <div className="flex items-center gap-1.5 min-w-0">
+
+              <span className="font-medium text-xs text-ink truncate">
+                {customer}
+              </span>
+
+              {phone && (
+                <>
+                  <span className="text-[9px] text-muted">
+                    •
+                  </span>
+
+                  <span className="text-[10px] text-muted truncate">
+                    {phone}
+                  </span>
+                </>
+              )}
+
+            </div>
+
+          </div>
+
+          {/* PRODUCTS */}
+          <div className="ml-6 mt-1 space-y-0.5">
+
+            {r.lines.map((l, idx) => (
+              <div
+                key={
+                  l._id ||
+                  `${l.product?._id || l.product}-${idx}`
+                }
+                className="text-[10px] leading-4 truncate"
+                title={`${l.product?.name || "Product"}${
+                  l.color
+                    ? ` (${l.color})`
+                    : ""
+                } ×${l.quantity}`}
+              >
+
+                <span className="font-medium">
+                  {l.product?.name ||
+                    "Product"}
+                </span>
+
+                {l.color && (
+                  <span className="text-muted">
+                    {" "}
+                    ({l.color})
+                  </span>
+                )}
+
+                <span className="text-muted font-medium">
+                  {" "}
+                  ×{l.quantity}
+                </span>
+
+              </div>
+            ))}
+
+            {r.lines.length > 1 && (
+              <div className="text-[9px] text-muted">
+                {r.lines.length} products
+              </div>
+            )}
+
+          </div>
+
+          {/* NOTES — IMPORTANT / ALWAYS VISIBLE */}
+          {r.primary.notes && (
+            <div className="ml-6 mt-1.5 rounded-md bg-amber-light/40 border border-amber/20 px-2 py-1.5">
+
+              <div className="text-[8px] font-semibold uppercase tracking-wide text-amber leading-3">
+                Notes
+              </div>
+
+              <div className="text-[10px] leading-4 text-ink whitespace-pre-wrap break-words">
+                {r.primary.notes}
+              </div>
+
+            </div>
+          )}
+
+          {/* STATUS + PAYMENT */}
+          <div className="ml-6 mt-1.5 grid grid-cols-2 gap-1.5">
+
+            <select
+              value={r.primary.status}
+              onChange={(e) =>
+                handleStatusChange(
+                  r,
+                  e.target.value
+                )
+              }
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              className={`w-full text-[10px] rounded-full px-2 py-1 border-0 font-medium ${
+                STATUS_TONE[
+                  r.primary.status
+                ] ||
+                "bg-paper text-muted"
+              }`}
+            >
+              {STATUSES.map((s) => (
+                <option
+                  key={s}
+                  value={s}
+                  className="bg-paper text-ink"
+                >
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={r.primary.paidStatus}
+              onChange={(e) =>
+                handlePaidStatusChange(
+                  r,
+                  e.target.value
+                )
+              }
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              className={`w-full text-[10px] rounded-full px-2 py-1 border-0 font-medium ${
+                PAYMENT_TONE[
+                  r.primary.paidStatus
+                ] ||
+                "bg-paper text-muted"
+              }`}
+            >
+              {PAID_STATUSES.map((s) => (
+                <option
+                  key={s}
+                  value={s}
+                  className="bg-paper text-ink"
+                >
+                  {s}
+                </option>
+              ))}
+            </select>
+
+          </div>
+
+          {/* DELIVERY + ACTIONS */}
+          <div className="ml-6 mt-1.5 flex items-center justify-between gap-2">
+
+            <div className="min-w-0">
+
+              {partner ? (
+                <div className="flex items-center gap-1 text-[9px] text-muted truncate">
+
+                  <Truck
+                    className="w-3 h-3 shrink-0"
+                  />
+
+                  <span className="truncate">
+                    {partner}
+                  </span>
+
+                  {deliveryCost > 0 && (
+                    <span className="shrink-0">
+                      • {formatMoney(
+                        deliveryCost
+                      )}
+                    </span>
+                  )}
+
+                </div>
+              ) : (
+                <div className="text-[9px] text-muted">
+                  No courier
+                </div>
+              )}
+
+            </div>
+
+            {/* ACTIONS */}
+            <div className="flex items-center gap-3 shrink-0">
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  printInvoice(r);
+                }}
+                className="text-muted hover:text-ink"
+                title="Print invoice"
+              >
+                <Printer size={14} />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEdit(r);
+                }}
+                className="text-muted hover:text-green-700"
+                title="Edit order"
+              >
+                <Pencil size={14} />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(r);
+                }}
+                className="text-muted hover:text-red-700"
+                title="Delete order"
+              >
+                <Trash2 size={14} />
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      );
+    })}
+
+    {groupedSales.length === 0 && (
+      <div className="py-10 text-center text-sm text-muted">
+        No sales orders match your filters.
+      </div>
+    )}
+
+  </div>
+
+  {/* MOBILE PAGINATION */}
+  <div className="flex items-center justify-between pt-1">
+
+    <button
+      type="button"
+      disabled={page <= 1}
+      onClick={() =>
+        setPage((p) =>
+          Math.max(1, p - 1)
+        )
+      }
+      className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
+    >
+      Previous
+    </button>
+
+    <span className="text-[10px] text-muted">
+      Page {page} of {pages || 1}
+    </span>
+
+    <button
+      type="button"
+      disabled={page >= pages}
+      onClick={() =>
+        setPage((p) =>
+          Math.min(pages, p + 1)
+        )
+      }
+      className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
+    >
+      Next
+    </button>
+
+  </div>
+
+</div>
+
+      {/* ---------------------------------------------------
+          DESKTOP SALES TABLE
+      --------------------------------------------------- */}
+      <div className="hidden md:block w-full overflow-x-auto min-w-full">
 
         <DataTable
           columns={columns}
@@ -3124,6 +3120,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                   (s) => (
                     <option
                       key={s}
+                    value={s}
                     >
                       {s}
                     </option>
