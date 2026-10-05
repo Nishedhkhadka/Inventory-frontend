@@ -22,6 +22,7 @@ import {
   Printer,
   ChevronDown,
   Truck,
+  LucideReceiptText,
 } from "lucide-react";
 
 // Tone mappings
@@ -39,18 +40,11 @@ const PAYMENT_TONE = {
   Unpaid: "bg-rose-light text-rose",
 };
 
-const STATUSES = [
-  "In progress",
-  "Packed",
-  "Delivered",
-  "Returned",
-  "Damaged",
-];
+const STATUSES = ["In progress", "Packed", "Delivered", "Returned", "Damaged"];
 
 const PAID_STATUSES = ["COD", "Paid", "Unpaid"];
 
-const round2 = (n) =>
-  Math.round((Number(n) || 0) * 100) / 100;
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 // Strips sub-line suffixes
 const baseOrderId = (id) =>
@@ -66,17 +60,13 @@ const makeEmptyLine = () => ({
 });
 
 const DELIVERY_PARTNER_DEFAULTS = [
-  
   "Upaya",
   "Pathao",
   "Indrive",
   "Yango",
   "Fabbud",
-  "Self"
-
-
+  "Self",
 ];
-
 
 const makeEmptyOrderForm = () => ({
   orderId: "",
@@ -109,13 +99,9 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const [orderForm, setOrderForm] = useState(
-    makeEmptyOrderForm,
-  );
+  const [orderForm, setOrderForm] = useState(makeEmptyOrderForm);
 
-  const [lines, setLines] = useState([
-    makeEmptyLine(),
-  ]);
+  const [lines, setLines] = useState([makeEmptyLine()]);
 
   const [orderDiscount, setOrderDiscount] = useState("");
   const [saving, setSaving] = useState(false);
@@ -130,9 +116,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // BULK SELECTION
   // ---------------------------------------------------------
 
-  const [selectedOrders, setSelectedOrders] = useState(
-    new Set(),
-  );
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
 
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkUpdating, setBulkUpdating] = useState(false);
@@ -152,26 +136,18 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     }).then((res) => {
       const sorted = [...(res.data || [])].sort((a, b) => {
         // Newest order date first
-        const dateA = new Date(
-          a.orderDate || 0,
-        ).getTime();
+        const dateA = new Date(a.orderDate || 0).getTime();
 
-        const dateB = new Date(
-          b.orderDate || 0,
-        ).getTime();
+        const dateB = new Date(b.orderDate || 0).getTime();
 
         if (dateB !== dateA) {
           return dateB - dateA;
         }
 
         // Same date → newest created order first
-        const createdA = new Date(
-          a.createdAt || 0,
-        ).getTime();
+        const createdA = new Date(a.createdAt || 0).getTime();
 
-        const createdB = new Date(
-          b.createdAt || 0,
-        ).getTime();
+        const createdB = new Date(b.createdAt || 0).getTime();
 
         return createdB - createdA;
       });
@@ -179,18 +155,10 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       setSales(sorted);
       setPages(res.pages || 1);
     });
-  }, [
-    search,
-    status,
-    page,
-    fromDate,
-    toDate,
-  ]);
+  }, [search, status, page, fromDate, toDate]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(
-      "zeno-delivery-partners",
-    );
+    const stored = localStorage.getItem("zeno-delivery-partners");
 
     const parsed = stored ? JSON.parse(stored) : [];
 
@@ -198,9 +166,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       ...new Set([
         ...DELIVERY_PARTNER_DEFAULTS,
         ...parsed,
-        ...sales
-          .map((s) => s.deliveryPartner)
-          .filter(Boolean),
+        ...sales.map((s) => s.deliveryPartner).filter(Boolean),
       ]),
     ];
 
@@ -245,9 +211,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       return product.currentStock;
     }
 
-    const c = product.colors.find(
-      (c) => c.name === colorName,
-    );
+    const c = product.colors.find((c) => c.name === colorName);
 
     return c ? c.stock : null;
   };
@@ -260,8 +224,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     const map = new Map();
 
     for (const sale of sales) {
-      const key =
-        baseOrderId(sale.orderId) || sale._id;
+      const key = baseOrderId(sale.orderId) || sale._id;
 
       if (!map.has(key)) {
         map.set(key, []);
@@ -292,39 +255,23 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           deliveryLine,
           lines: groupLines,
 
-          lineTotal: groupLines.reduce(
-            (sum, l) =>
-              sum + (l.lineTotal || 0),
-            0,
-          ),
+          lineTotal: groupLines.reduce((sum, l) => sum + (l.lineTotal || 0), 0),
 
-          quantity: groupLines.reduce(
-            (sum, l) =>
-              sum + (l.quantity || 0),
-            0,
-          ),
+          quantity: groupLines.reduce((sum, l) => sum + (l.quantity || 0), 0),
         };
       })
       .sort((a, b) => {
-        const dateA = new Date(
-          a.primary.orderDate || 0,
-        ).getTime();
+        const dateA = new Date(a.primary.orderDate || 0).getTime();
 
-        const dateB = new Date(
-          b.primary.orderDate || 0,
-        ).getTime();
+        const dateB = new Date(b.primary.orderDate || 0).getTime();
 
         if (dateB !== dateA) {
           return dateB - dateA;
         }
 
-        const createdA = new Date(
-          a.primary.createdAt || 0,
-        ).getTime();
+        const createdA = new Date(a.primary.createdAt || 0).getTime();
 
-        const createdB = new Date(
-          b.primary.createdAt || 0,
-        ).getTime();
+        const createdB = new Date(b.primary.createdAt || 0).getTime();
 
         return createdB - createdA;
       });
@@ -336,15 +283,9 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   useEffect(() => {
     setSelectedOrders((prev) => {
-      const visibleKeys = new Set(
-        groupedSales.map((group) => group.key),
-      );
+      const visibleKeys = new Set(groupedSales.map((group) => group.key));
 
-      const next = new Set(
-        [...prev].filter((key) =>
-          visibleKeys.has(key),
-        ),
-      );
+      const next = new Set([...prev].filter((key) => visibleKeys.has(key)));
 
       return next;
     });
@@ -370,14 +311,11 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   const allVisibleSelected =
     groupedSales.length > 0 &&
-    groupedSales.every((group) =>
-      selectedOrders.has(group.key),
-    );
+    groupedSales.every((group) => selectedOrders.has(group.key));
 
-  const someVisibleSelected =
-    groupedSales.some((group) =>
-      selectedOrders.has(group.key),
-    );
+  const someVisibleSelected = groupedSales.some((group) =>
+    selectedOrders.has(group.key),
+  );
 
   const toggleSelectAll = () => {
     setSelectedOrders((prev) => {
@@ -408,16 +346,13 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // BULK STATUS CHANGE
   // ---------------------------------------------------------
 
-  const handleBulkStatusChange = async (
-    newStatus,
-  ) => {
+  const handleBulkStatusChange = async (newStatus) => {
     if (!newStatus || selectedOrders.size === 0) {
       return;
     }
 
-    const selectedGroups = groupedSales.filter(
-      (group) =>
-        selectedOrders.has(group.key),
+    const selectedGroups = groupedSales.filter((group) =>
+      selectedOrders.has(group.key),
     );
 
     if (!selectedGroups.length) {
@@ -440,13 +375,12 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     setBulkUpdating(true);
 
     try {
-      const updates = selectedGroups.flatMap(
-        (group) =>
-          group.lines.map((line) =>
-            updateSale(line._id, {
-              status: newStatus,
-            }),
-          ),
+      const updates = selectedGroups.flatMap((group) =>
+        group.lines.map((line) =>
+          updateSale(line._id, {
+            status: newStatus,
+          }),
+        ),
       );
 
       await Promise.all(updates);
@@ -471,34 +405,21 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // ---------------------------------------------------------
 
   const subtotal = useMemo(
-    () =>
-      lines.reduce(
-        (sum, l) =>
-          sum + (Number(l.lineTotal) || 0),
-        0,
-      ),
+    () => lines.reduce((sum, l) => sum + (Number(l.lineTotal) || 0), 0),
     [lines],
   );
 
   const finalProductTotal = Math.max(
     0,
-    round2(
-      subtotal -
-        (Number(orderDiscount) || 0),
-    ),
+    round2(subtotal - (Number(orderDiscount) || 0)),
   );
 
   const deliveryFeeNum =
     orderForm.deliveryFeeCharged === ""
       ? 0
-      : Number(
-          orderForm.deliveryFeeCharged,
-        );
+      : Number(orderForm.deliveryFeeCharged);
 
-  const grandTotal = round2(
-    finalProductTotal +
-      deliveryFeeNum,
-  );
+  const grandTotal = round2(finalProductTotal + deliveryFeeNum);
 
   // ---------------------------------------------------------
   // LINE MANAGEMENT
@@ -506,79 +427,49 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   const updateLine = (i, patch) =>
     setLines((prev) =>
-      prev.map((l, idx) =>
-        idx === i
-          ? { ...l, ...patch }
-          : l,
-      ),
+      prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)),
     );
 
-  const handleLineProductChange = (
-    i,
-    productId,
-  ) => {
-    const product =
-      productById.get(productId);
+  const handleLineProductChange = (i, productId) => {
+    const product = productById.get(productId);
 
     updateLine(i, {
       product: productId,
 
-      color: product?.colors?.length
-        ? product.colors[0].name
-        : "",
+      color: product?.colors?.length ? product.colors[0].name : "",
 
-      unitPrice: product
-        ? product.retailPrice
-        : "",
+      unitPrice: product ? product.retailPrice : "",
 
       lineTotal: product
-        ? product.retailPrice *
-          (Number(lines[i].quantity) || 1)
+        ? product.retailPrice * (Number(lines[i].quantity) || 1)
         : "",
 
       priceTouched: false,
     });
   };
 
-  const handleLineQuantityChange = (
-    i,
-    value,
-  ) => {
+  const handleLineQuantityChange = (i, value) => {
     const line = lines[i];
 
     updateLine(i, {
       quantity: value,
 
       lineTotal: !line.priceTouched
-        ? round2(
-            (Number(line.unitPrice) || 0) *
-              (Number(value) || 0),
-          )
+        ? round2((Number(line.unitPrice) || 0) * (Number(value) || 0))
         : line.lineTotal,
     });
   };
 
-  const addLine = () =>
-    setLines((prev) => [
-      ...prev,
-      makeEmptyLine(),
-    ]);
+  const addLine = () => setLines((prev) => [...prev, makeEmptyLine()]);
 
   const removeLine = (i) =>
-    setLines((prev) =>
-      prev.filter(
-        (_, idx) => idx !== i,
-      ),
-    );
+    setLines((prev) => prev.filter((_, idx) => idx !== i));
 
   // ---------------------------------------------------------
   // INDIVIDUAL STATUS
   // ---------------------------------------------------------
 
-  const handleStatusChange = async (
-    group,
-    newStatus,
-  ) => {
+  const handleStatusChange = async (group, newStatus) => {
     await Promise.all(
       group.lines.map((l) =>
         updateSale(l._id, {
@@ -590,10 +481,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     load();
   };
 
-  const handlePaidStatusChange = async (
-    group,
-    newPaidStatus,
-  ) => {
+  const handlePaidStatusChange = async (group, newPaidStatus) => {
     await Promise.all(
       group.lines.map((l) =>
         updateSale(l._id, {
@@ -623,11 +511,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       return;
     }
 
-    await Promise.all(
-      group.lines.map((l) =>
-        deleteSale(l._id),
-      ),
-    );
+    await Promise.all(group.lines.map((l) => deleteSale(l._id)));
 
     // Remove from selection if selected
     setSelectedOrders((prev) => {
@@ -643,266 +527,615 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // PRINT INVOICE
   // ---------------------------------------------------------
 
- const printInvoice = (group) => {
-  const profile = getBusinessProfile();
-  const billSource = group.lines.find((line) => line.billNo) || group.primary;
-  const invoiceDate = formatDate(group.primary.orderDate || todayStr());
+  const printInvoice = (group) => {
+    const profile = getBusinessProfile();
+    const billSource = group.lines.find((line) => line.billNo) || group.primary;
+    const invoiceDate = formatDate(group.primary.orderDate || todayStr());
 
-  const subtotalValue = group.lines.reduce(
-    (sum, line) =>
-      sum + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
-    0
-  );
+    const subtotalValue = group.lines.reduce(
+      (sum, line) =>
+        sum + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
+      0,
+    );
 
-  const discountedSubtotal = group.lines.reduce(
-    (sum, line) => sum + (Number(line.lineTotal) || 0),
-    0
-  );
+    const discountedSubtotal = group.lines.reduce(
+      (sum, line) => sum + (Number(line.lineTotal) || 0),
+      0,
+    );
 
-  const discountValue = Math.max(0, subtotalValue - discountedSubtotal);
-  
-  // Delivery Fee Charged to customer
-  const deliveryFee = Number(group.deliveryLine?.deliveryFeeCharged) || 0;
-  const deliveryPartner = group.deliveryLine?.deliveryPartner || "—";
+    const discountValue = Math.max(0, subtotalValue - discountedSubtotal);
 
-  const grandTotalValue = Math.max(0, discountedSubtotal + deliveryFee);
-  const billNo = String(billSource.billNo || "BILL").trim() || "BILL";
+    // Delivery Fee Charged to customer
+    const deliveryFee = Number(group.deliveryLine?.deliveryFeeCharged) || 0;
+    const deliveryPartner = group.deliveryLine?.deliveryPartner || "—";
 
-  const rows = group.lines
-    .map((line, idx) => {
-      const lineAmount =
-        (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0);
+    const grandTotalValue = Math.max(0, discountedSubtotal + deliveryFee);
+    const billNo = String(billSource.billNo || "").trim();
 
-      return `
+    const rows = group.lines
+      .map((line, idx) => {
+        const lineAmount =
+          (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0);
+
+        return `
         <tr>
           <td>${idx + 1}</td>
           <td>${line.product?.name || "Product"}${
-        line.color ? ` (${line.color})` : ""
-      }</td>
+            line.color ? ` (${line.color})` : ""
+          }</td>
           <td>${Number(line.quantity) || 0}</td>
           <td>${formatMoneyText(Number(line.unitPrice) || 0)}</td>
           <td>${formatMoneyText(lineAmount)}</td>
         </tr>`;
-    })
-    .join("");
+      })
+      .join("");
 
-  const addressLines = (profile.address || "")
-    .split(/\n|,/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("<br />");
+    const addressLines = (profile.address || "")
+      .split(/\n|,/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("<br />");
 
-  const printableHtml = `<!DOCTYPE html>
-    <html>
-      <head>
-        <title>Invoice - ${
-          baseOrderId(group.primary.orderId) || "Order"
-        }</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; margin: 24px; }
-          .invoice { max-width: 900px; margin: 0 auto; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #d1d5db; padding-bottom: 20px; margin-bottom: 20px; }
-          .brand { display: flex; align-items: center; gap: 12px; }
-          .brand img { width: 58px; height: 58px; object-fit: cover; border-radius: 10px; border: 1px solid #e5e7eb; }
-          .brand h1 { margin: 0; font-size: 28px; }
-          .brand p { margin: 3px 0 0; color: #6b7280; }
-          .meta { text-align: right; }
-          .meta strong { display: block; margin-bottom: 6px; font-size: 18px; }
-          .meta span { display: block; color: #4b5563; margin-bottom: 2px; }
-          .details { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
-          .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; }
-          .card h3 { margin: 0 0 8px; font-size: 13px; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
-          .card p { margin: 4px 0; }
-          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-          th, td { border-bottom: 1px solid #e5e7eb; padding: 10px 8px; text-align: left; }
-          th { background: #f3f4f6; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #4b5563; }
-          .totals { margin-top: 18px; width: 320px; margin-left: auto; }
-          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-          .totals-row.total { font-weight: 700; font-size: 18px; }
-          @media print { body { margin: 0; } .invoice { max-width: 100%; } }
-        </style>
-      </head>
-      <body>
-        <div class="invoice">
-          <div class="header">
-            <div class="brand">
-              ${profile.logoUrl ? `<img src="${profile.logoUrl}" alt="Brand logo" />` : ""}
-              <div>
-                <h1>${profile.companyName || "Zeno"}</h1>
-                <p>${profile.website || ""}</p>
-              </div>
-            </div>
-            <div class="meta">
-              <strong>Invoice</strong>
-              <span>Order: ${baseOrderId(group.primary.orderId) || "—"}</span>
-              <span>Bill no: ${billNo}</span>
-              <span>Date: ${invoiceDate}</span>
-            </div>
-          </div>
-          <div class="details">
-            <div class="card">
-              <h3>Company</h3>
-              <p><strong>${profile.companyName || "Zeno"}</strong></p>
-              ${addressLines ? `<p>${addressLines}</p>` : ""}
-              ${profile.phone ? `<p>Phone: ${profile.phone}</p>` : ""}
-              ${profile.panNo ? `<p>PAN: ${profile.panNo}</p>` : ""}
-              ${profile.email ? `<p>Email: ${profile.email}</p>` : ""}
-              ${profile.website ? `<p>Website: ${profile.website}</p>` : ""}
-            </div>
-            <div class="card">
-              <h3>Customer & Logistics</h3>
-              <p><strong>${group.primary.pointOfContact || "Walk-in customer"}</strong></p>
-              ${group.primary.customerPhone ? `<p>Phone: ${group.primary.customerPhone}</p>` : ""}
-              <p style="margin-top: 8px;"><strong>Courier:</strong> ${deliveryPartner}</p>
-              ${group.primary.notes ? `<p>Notes: ${group.primary.notes}</p>` : ""}
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th><th>Item</th><th>Qty</th><th>Unit price</th><th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <div class="totals">
-            <div class="totals-row">
-              <span>Subtotal</span>
-              <span>${formatMoneyText(subtotalValue)}</span>
-            </div>
-            ${
-              discountValue
-                ? `<div class="totals-row">
-                    <span>Discount</span>
-                    <span>-${formatMoneyText(discountValue)}</span>
-                  </div>`
-                : ""
-            }
-            ${
-              deliveryFee
-                ? `<div class="totals-row">
-                    <span>Delivery Fee (${deliveryPartner})</span>
-                    <span>${formatMoneyText(deliveryFee)}</span>
-                  </div>`
-                : ""
-            }
-            <div class="totals-row total">
-              <span>Total</span>
-              <span>${formatMoneyText(grandTotalValue)}</span>
-            </div>
-          </div>
-          <p style="margin-top: 28px; color: #4b5563;">
-            ${profile.invoiceNote || "Thank you for your business."}
-          </p>
-        </div>
-      </body>
-    </html>`;
+    const printableHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Bill - ${baseOrderId(group.primary.orderId) || "Order"}</title>
 
-  const invoiceBlob = new Blob([printableHtml], { type: "text/html" });
-  const invoiceUrl = URL.createObjectURL(invoiceBlob);
-  const invoiceWindow = window.open(
-    invoiceUrl,
-    "_blank",
-    "width=900,height=1000,noopener,noreferrer"
-  );
-
-  if (!invoiceWindow) {
-    URL.revokeObjectURL(invoiceUrl);
-    alert("Please allow pop-ups to print the invoice.");
-    return;
-  }
-
-  setTimeout(() => {
-    try {
-      invoiceWindow.focus();
-      invoiceWindow.print();
-    } catch {
-      alert("Print preview was blocked. Please retry with pop-ups enabled.");
-    } finally {
-      setTimeout(() => URL.revokeObjectURL(invoiceUrl), 1000);
+  <style>
+    * {
+      box-sizing: border-box;
     }
-  }, 250);
-};
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: #000;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .invoice {
+      width: 100%;
+      max-width: 850px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* HEADER */
+    .header {
+      text-align: center;
+      border-bottom: 1px solid #000;
+      padding-bottom: 10px;
+    }
+
+    .logo {
+      width: 55px;
+      height: 55px;
+      object-fit: contain;
+      margin-bottom: 5px;
+    }
+
+    .company-name {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .company-details {
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 3px;
+    }
+
+    .pan {
+      font-size: 13px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
+    .invoice-title {
+      text-align: center;
+      font-size: 17px;
+      font-weight: bold;
+      margin: 9px 0;
+    }
+
+    /* BILL INFORMATION */
+    .bill-info {
+      width: 100%;
+      border: 1px solid #000;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+
+    .bill-info td {
+      border: 1px solid #000;
+      padding: 7px 9px;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+
+    /* CUSTOMER */
+    .customer {
+      border: 1px solid #000;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+    }
+
+    .customer-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .customer-details {
+      display: flex;
+      gap: 35px;
+      flex-wrap: wrap;
+    }
+
+    /* ITEMS */
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5px;
+    }
+
+    table.items th,
+    table.items td {
+      border: 1px solid #000;
+      padding: 7px 6px;
+    }
+
+    table.items th {
+      text-align: center;
+      font-weight: bold;
+      background: #f2f2f2;
+    }
+
+    table.items td:nth-child(1) {
+      width: 45px;
+      text-align: center;
+    }
+
+    table.items td:nth-child(3) {
+      width: 60px;
+      text-align: center;
+    }
+
+    table.items td:nth-child(4),
+    table.items td:nth-child(5) {
+      width: 110px;
+      text-align: right;
+    }
+
+    /* TOTALS */
+    .summary {
+      width: 100%;
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .totals {
+      width: 320px;
+      border: 1px solid #000;
+      border-collapse: collapse;
+    }
+
+    .totals-row {
+      display: flex;
+      border-bottom: 1px solid #000;
+    }
+
+    .totals-row:last-child {
+      border-bottom: none;
+    }
+
+    .totals-row span {
+      padding: 7px 8px;
+    }
+
+    .totals-row span:first-child {
+      flex: 1;
+    }
+
+    .totals-row span:last-child {
+      width: 125px;
+      text-align: right;
+      border-left: 1px solid #000;
+    }
+
+    .grand-total {
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    /* NOTES */
+    .notes {
+      border: 1px solid #000;
+      padding: 8px 10px;
+      margin-top: 10px;
+    }
+
+    /* SIGNATURE */
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 55px;
+    }
+
+    .signature {
+      width: 190px;
+      text-align: center;
+      border-top: 1px solid #000;
+      padding-top: 5px;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 11px;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      .invoice {
+        width: 100%;
+        max-width: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="invoice">
+
+    <!-- BUSINESS HEADER -->
+
+    <div class="header">
+
+      ${
+        profile.logoUrl
+          ? `<img
+              class="logo"
+              src="${profile.logoUrl}"
+              alt="Logo"
+            />`
+          : ""
+      }
+
+      <div class="company-name">
+        ${profile.companyName || "Zeno"}
+      </div>
+
+      ${
+        addressLines
+          ? `<div class="company-details">
+              ${addressLines}
+            </div>`
+          : ""
+      }
+
+      ${
+        profile.phone
+          ? `<div class="company-details">
+              ${profile.phone}
+            </div>`
+          : ""
+      }
+
+      ${
+        profile.email
+          ? `<div class="company-details">
+              ${profile.email}
+            </div>`
+          : ""
+      }
+
+      ${
+        profile.website
+          ? `<div class="company-details">
+              ${profile.website}
+            </div>`
+          : ""
+      }
+
+      ${
+        profile.panNo
+          ? `<div class="pan">
+              PAN No.: ${profile.panNo}
+            </div>`
+          : ""
+      }
+
+    </div>
+
+    <div class="invoice-title">
+      SALES INVOICE
+    </div>
+
+
+    <!-- BILL INFORMATION -->
+
+    <table class="bill-info">
+      <tr>
+        <td>
+          <span class="label">Bill No.:</span>
+          ${billNo || ""}
+        </td>
+
+        <td>
+          <span class="label">Date:</span>
+          ${invoiceDate}
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <span class="label">Order No.:</span>
+          ${baseOrderId(group.primary.orderId) || ""}
+        </td>
+
+     
+      </tr>
+    </table>
+
+
+    <!-- CUSTOMER -->
+
+    <div class="customer">
+
+      <div class="customer-title">
+        Customer Details
+      </div>
+
+      <div class="customer-details">
+
+        <div>
+          <strong>Name:</strong>
+          ${group.primary.pointOfContact || "Walk-in Customer"}
+        </div>
+
+        ${
+          group.primary.customerPhone
+            ? `<div>
+                <strong>Phone:</strong>
+                ${group.primary.customerPhone}
+              </div>`
+            : ""
+        }
+
+      </div>
+
+    </div>
+
+
+    <!-- ITEMS -->
+
+    <table class="items">
+
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Particulars</th>
+          <th>Qty.</th>
+          <th>Rate</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        ${rows}
+      </tbody>
+
+    </table>
+
+
+    <!-- TOTALS -->
+
+    <div class="summary">
+
+      <div class="totals">
+
+        <div class="totals-row">
+          <span>Subtotal</span>
+          <span>
+            ${formatMoneyText(subtotalValue)}
+          </span>
+        </div>
+
+        ${
+          discountValue
+            ? `<div class="totals-row">
+                <span>Discount</span>
+                <span>
+                  -${formatMoneyText(discountValue)}
+                </span>
+              </div>`
+            : ""
+        }
+
+        ${
+          deliveryFee
+            ? `<div class="totals-row">
+                <span>Delivery Charge</span>
+                <span>
+                  ${formatMoneyText(deliveryFee)}
+                </span>
+              </div>`
+            : ""
+        }
+
+        <div class="totals-row grand-total">
+          <span>Grand Total</span>
+          <span>
+            ${formatMoneyText(grandTotalValue)}
+          </span>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- NOTES -->
+
+    ${
+      group.primary.notes || profile.invoiceNote
+        ? `<div class="notes">
+
+            ${
+              group.primary.notes
+                ? `<strong>Remarks:</strong>
+                   ${group.primary.notes}`
+                : ""
+            }
+
+            ${
+              profile.invoiceNote
+                ? `<div style="margin-top: 4px;">
+                    ${profile.invoiceNote}
+                   </div>`
+                : ""
+            }
+
+          </div>`
+        : ""
+    }
+
+
+    <!-- SIGNATURES -->
+
+    <div class="signatures">
+
+      <div class="signature">
+        Customer Signature
+      </div>
+
+      <div class="signature">
+        For ${profile.companyName || "Zeno"}
+      </div>
+
+    </div>
+
+
+    <div class="footer">
+      Thank you for your business.
+    </div>
+
+  </div>
+
+</body>
+</html>`;
+
+    const invoiceBlob = new Blob([printableHtml], { type: "text/html" });
+    const invoiceUrl = URL.createObjectURL(invoiceBlob);
+    const invoiceWindow = window.open(
+      invoiceUrl,
+      "_blank",
+      "width=900,height=1000,noopener,noreferrer",
+    );
+
+    if (!invoiceWindow) {
+      URL.revokeObjectURL(invoiceUrl);
+      alert("Please allow pop-ups to print the invoice.");
+      return;
+    }
+
+    setTimeout(() => {
+      try {
+        invoiceWindow.focus();
+        invoiceWindow.print();
+      } catch {
+        alert("Print preview was blocked. Please retry with pop-ups enabled.");
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(invoiceUrl), 1000);
+      }
+    }, 250);
+  };
 
   // ---------------------------------------------------------
   // EDIT
   // ---------------------------------------------------------
 
   const startEdit = (group) => {
-  setEditingGroup(group);
-  setOrderDiscount("");
+    setEditingGroup(group);
+    setOrderDiscount("");
 
-  const billSource =
-    group.lines.find((line) => line.billNo) || group.primary;
+    const billSource = group.lines.find((line) => line.billNo) || group.primary;
 
-  // Extract YYYY-MM-DD format for HTML date input compatibility
-  const rawDate = group.primary.orderDate || todayStr();
-  const formattedDate = rawDate.includes("T") 
-    ? rawDate.split("T")[0] 
-    : rawDate;
+    // Extract YYYY-MM-DD format for HTML date input compatibility
+    const rawDate = group.primary.orderDate || todayStr();
+    const formattedDate = rawDate.includes("T")
+      ? rawDate.split("T")[0]
+      : rawDate;
 
-  setOrderForm({
-    orderId: baseOrderId(group.primary.orderId),
-    billNo: billSource.billNo || "",
-    billIssued: Boolean(billSource.billNo || billSource.billIssued),
-    status: group.primary.status,
-    paidStatus: group.primary.paidStatus,
-    pointOfContact: group.primary.pointOfContact || "",
-    customerPhone: group.primary.customerPhone || "",
-    orderDate: formattedDate,
-    notes: group.primary.notes || "",
-    deliveryPartner: group.deliveryLine?.deliveryPartner || "",
-    deliveryFeeCharged:
-      group.deliveryLine?.deliveryFeeCharged === null ||
-      group.deliveryLine?.deliveryFeeCharged === undefined
-        ? ""
-        : group.deliveryLine.deliveryFeeCharged,
-    deliveryCost: group.deliveryLine?.deliveryCost || "",
-  });
+    setOrderForm({
+      orderId: baseOrderId(group.primary.orderId),
+      billNo: billSource.billNo || "",
+      billIssued: Boolean(billSource.billNo || billSource.billIssued),
+      status: group.primary.status,
+      paidStatus: group.primary.paidStatus,
+      pointOfContact: group.primary.pointOfContact || "",
+      customerPhone: group.primary.customerPhone || "",
+      orderDate: formattedDate,
+      notes: group.primary.notes || "",
+      deliveryPartner: group.deliveryLine?.deliveryPartner || "",
+      deliveryFeeCharged:
+        group.deliveryLine?.deliveryFeeCharged === null ||
+        group.deliveryLine?.deliveryFeeCharged === undefined
+          ? ""
+          : group.deliveryLine.deliveryFeeCharged,
+      deliveryCost: group.deliveryLine?.deliveryCost || "",
+    });
 
-  setLines(
-    group.lines.map((l) => ({
-      _id: l._id,
-      product: l.product?._id || l.product || "",
-      color: l.color || "",
-      quantity: l.quantity,
-      unitPrice: l.unitPrice,
-      lineTotal: l.lineTotal,
-      priceTouched: true,
-    }))
-  );
+    setLines(
+      group.lines.map((l) => ({
+        _id: l._id,
+        product: l.product?._id || l.product || "",
+        color: l.color || "",
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        lineTotal: l.lineTotal,
+        priceTouched: true,
+      })),
+    );
 
-  setShowForm(true);
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const cancelForm = () => {
     setShowForm(false);
     setEditingGroup(null);
 
-    setOrderForm(
-      makeEmptyOrderForm(),
-    );
+    setOrderForm(makeEmptyOrderForm());
 
-    setLines([
-      makeEmptyLine(),
-    ]);
+    setLines([makeEmptyLine()]);
 
     setOrderDiscount("");
   };
 
   const resolveOrderId = () => {
-    const typed =
-      orderForm.orderId.trim();
+    const typed = orderForm.orderId.trim();
 
     if (typed) {
       return typed;
     }
 
-    const rand =
-      Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase();
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
 
     return `A-${rand}`;
   };
@@ -921,28 +1154,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   };
 
   const addPartner = () => {
-    const partner = window.prompt(
-      "Add courier partner name",
-    );
+    const partner = window.prompt("Add courier partner name");
 
-    const cleaned =
-      partner?.trim();
+    const cleaned = partner?.trim();
 
     if (!cleaned) return;
 
-    const merged = [
-      ...new Set([
-        ...deliveryPartners,
-        cleaned,
-      ]),
-    ];
+    const merged = [...new Set([...deliveryPartners, cleaned])];
 
     setDeliveryPartners(merged);
 
-    localStorage.setItem(
-      "zeno-delivery-partners",
-      JSON.stringify(merged),
-    );
+    localStorage.setItem("zeno-delivery-partners", JSON.stringify(merged));
 
     setOrderForm((prev) => ({
       ...prev,
@@ -952,27 +1174,16 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     setDeliveryMenuOpen(false);
   };
 
-  const deletePartner = (
-    partnerName,
-  ) => {
+  const deletePartner = (partnerName) => {
     if (!partnerName) return;
 
-    const next =
-      deliveryPartners.filter(
-        (p) => p !== partnerName,
-      );
+    const next = deliveryPartners.filter((p) => p !== partnerName);
 
     setDeliveryPartners(next);
 
-    localStorage.setItem(
-      "zeno-delivery-partners",
-      JSON.stringify(next),
-    );
+    localStorage.setItem("zeno-delivery-partners", JSON.stringify(next));
 
-    if (
-      orderForm.deliveryPartner ===
-      partnerName
-    ) {
+    if (orderForm.deliveryPartner === partnerName) {
       setOrderForm((prev) => ({
         ...prev,
         deliveryPartner: "",
@@ -991,307 +1202,181 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     try {
       const shared = {
-        status:
-          orderForm.status,
+        status: orderForm.status,
 
-        paidStatus:
-          orderForm.paidStatus,
+        paidStatus: orderForm.paidStatus,
 
-        pointOfContact:
-          orderForm.pointOfContact,
+        pointOfContact: orderForm.pointOfContact,
 
-        customerPhone:
-          orderForm.customerPhone,
+        customerPhone: orderForm.customerPhone,
 
-        orderDate:
-          orderForm.orderDate ||
-          todayStr(),
+        orderDate: orderForm.orderDate || todayStr(),
 
-        notes:
-          orderForm.notes,
+        notes: orderForm.notes,
 
-        deliveryPartner:
-          orderForm.deliveryPartner ||
-          undefined,
+        deliveryPartner: orderForm.deliveryPartner || undefined,
       };
 
-      const discount =
-        Number(orderDiscount) || 0;
+      const discount = Number(orderDiscount) || 0;
 
-      const target = Math.max(
-        0,
-        subtotal - discount,
-      );
+      const target = Math.max(0, subtotal - discount);
 
       let allocated = 0;
 
-      const finalLineTotals =
-        lines.map((l, idx) => {
-          const explicitValue =
-            l.priceTouched ||
-            (l.lineTotal !== "" &&
-              l.lineTotal !== null &&
-              l.lineTotal !==
-                undefined)
-              ? Number(
-                  l.lineTotal || 0,
-                )
-              : null;
+      const finalLineTotals = lines.map((l, idx) => {
+        const explicitValue =
+          l.priceTouched ||
+          (l.lineTotal !== "" &&
+            l.lineTotal !== null &&
+            l.lineTotal !== undefined)
+            ? Number(l.lineTotal || 0)
+            : null;
 
-          if (
-            explicitValue !== null
-          ) {
-            allocated +=
-              explicitValue;
+        if (explicitValue !== null) {
+          allocated += explicitValue;
 
-            return explicitValue;
-          }
+          return explicitValue;
+        }
 
-          if (
-            idx ===
-            lines.length - 1
-          ) {
-            return round2(
-              Math.max(
-                0,
-                target -
-                  allocated,
-              ),
-            );
-          }
+        if (idx === lines.length - 1) {
+          return round2(Math.max(0, target - allocated));
+        }
 
-          const share =
-            subtotal > 0
-              ? ((Number(
-                  l.lineTotal,
-                ) || 0) /
-                  subtotal) *
-                target
-              : 0;
+        const share =
+          subtotal > 0 ? ((Number(l.lineTotal) || 0) / subtotal) * target : 0;
 
-          const rounded =
-            round2(share);
+        const rounded = round2(share);
 
-          allocated += rounded;
+        allocated += rounded;
 
-          return rounded;
-        });
+        return rounded;
+      });
 
-      const baseId =
-        resolveOrderId();
+      const baseId = resolveOrderId();
 
       // -----------------------------------------------------
       // EDITING EXISTING ORDER
       // -----------------------------------------------------
 
       if (editingGroup) {
-        const currentIds =
-          new Set(
-            lines
-              .map((l) => l._id)
-              .filter(Boolean),
-          );
+        const currentIds = new Set(lines.map((l) => l._id).filter(Boolean));
 
-        const removedLines =
-          editingGroup.lines.filter(
-            (l) =>
-              !currentIds.has(
-                l._id,
-              ),
-          );
-
-        await Promise.all(
-          removedLines.map((l) =>
-            deleteSale(l._id),
-          ),
+        const removedLines = editingGroup.lines.filter(
+          (l) => !currentIds.has(l._id),
         );
 
-        const linePromises =
-          lines.map((line, i) => {
-            const lineOrderId =
+        await Promise.all(removedLines.map((l) => deleteSale(l._id)));
+
+        const linePromises = lines.map((line, i) => {
+          const lineOrderId = i === 0 ? baseId : `${baseId}-line-${i + 1}`;
+
+          const linePayload = {
+            ...shared,
+
+            /*
+             * A bill number belongs to only one Sale document.
+             * For an edited multi-line order, preserve the line
+             * that currently owns the bill number.
+             */
+            billIssued:
+              Boolean(orderForm.billIssued) &&
+              (editingGroup.lines.findIndex((l) => Boolean(l.billNo)) === i ||
+                (editingGroup.lines.every((l) => !l.billNo) && i === 0)),
+
+            billNo:
+              Boolean(orderForm.billIssued) &&
+              (editingGroup.lines.findIndex((l) => Boolean(l.billNo)) === i ||
+                (editingGroup.lines.every((l) => !l.billNo) && i === 0))
+                ? (orderForm.billNo || "").trim() || undefined
+                : undefined,
+
+            orderId: lineOrderId,
+
+            product: line.product,
+
+            color: line.color || undefined,
+
+            quantity: Number(line.quantity),
+
+            unitPrice: Number(line.unitPrice),
+
+            lineTotal: finalLineTotals[i],
+
+            deliveryPartner:
+              i === 0 ? orderForm.deliveryPartner || undefined : undefined,
+
+            deliveryFeeCharged:
               i === 0
-                ? baseId
-                : `${baseId}-line-${i + 1}`;
+                ? orderForm.deliveryFeeCharged === ""
+                  ? 0
+                  : Number(orderForm.deliveryFeeCharged)
+                : null,
 
-            const linePayload = {
-              ...shared,
+            deliveryCost:
+              i === 0
+                ? orderForm.deliveryCost === ""
+                  ? 0
+                  : Number(orderForm.deliveryCost)
+                : 0,
+          };
 
-              /*
-               * A bill number belongs to only one Sale document.
-               * For an edited multi-line order, preserve the line
-               * that currently owns the bill number.
-               */
-              billIssued:
-                Boolean(orderForm.billIssued) &&
-                (
-                  (editingGroup.lines.findIndex(
-                    (l) => Boolean(l.billNo)
-                  ) === i) ||
-                  (
-                    editingGroup.lines.every(
-                      (l) => !l.billNo
-                    ) && i === 0
-                  )
-                ),
+          return line._id
+            ? updateSale(line._id, linePayload)
+            : createSale(linePayload);
+        });
 
-              billNo:
-                Boolean(orderForm.billIssued) &&
-                (
-                  (editingGroup.lines.findIndex(
-                    (l) => Boolean(l.billNo)
-                  ) === i) ||
-                  (
-                    editingGroup.lines.every(
-                      (l) => !l.billNo
-                    ) && i === 0
-                  )
-                )
-                  ? ((orderForm.billNo || "").trim() || undefined)
-                  : undefined,
-
-              orderId:
-                lineOrderId,
-
-              product:
-                line.product,
-
-              color:
-                line.color ||
-                undefined,
-
-              quantity:
-                Number(
-                  line.quantity,
-                ),
-
-              unitPrice:
-                Number(
-                  line.unitPrice,
-                ),
-
-              lineTotal:
-                finalLineTotals[i],
-
-              deliveryPartner:
-                i === 0
-                  ? orderForm.deliveryPartner ||
-                    undefined
-                  : undefined,
-
-              deliveryFeeCharged:
-                i === 0
-                  ? orderForm.deliveryFeeCharged ===
-                    ""
-                    ? 0
-                    : Number(
-                        orderForm.deliveryFeeCharged,
-                      )
-                  : null,
-
-              deliveryCost:
-                i === 0
-                  ? orderForm.deliveryCost ===
-                    ""
-                    ? 0
-                    : Number(
-                        orderForm.deliveryCost,
-                      )
-                  : 0,
-            };
-
-            return line._id
-              ? updateSale(
-                  line._id,
-                  linePayload,
-                )
-              : createSale(
-                  linePayload,
-                );
-          });
-
-        await Promise.all(
-          linePromises,
-        );
+        await Promise.all(linePromises);
       }
 
       // -----------------------------------------------------
       // CREATE NEW ORDER
       // -----------------------------------------------------
-
       else {
-        const linePromises =
-          lines.map((line, i) => {
-            const linePayload = {
-              ...shared,
+        const linePromises = lines.map((line, i) => {
+          const linePayload = {
+            ...shared,
 
-              billIssued:
-                Boolean(orderForm.billIssued) && i === 0,
+            billIssued: Boolean(orderForm.billIssued) && i === 0,
 
-              billNo:
-                Boolean(orderForm.billIssued) && i === 0
-                  ? ((orderForm.billNo || "").trim() || undefined)
-                  : undefined,
+            billNo:
+              Boolean(orderForm.billIssued) && i === 0
+                ? (orderForm.billNo || "").trim() || undefined
+                : undefined,
 
-              orderId:
-                i === 0
-                  ? baseId
-                  : `${baseId}-line-${i + 1}`,
+            orderId: i === 0 ? baseId : `${baseId}-line-${i + 1}`,
 
-              product:
-                line.product,
+            product: line.product,
 
-              color:
-                line.color ||
-                undefined,
+            color: line.color || undefined,
 
-              quantity:
-                Number(
-                  line.quantity,
-                ),
+            quantity: Number(line.quantity),
 
-              unitPrice:
-                Number(
-                  line.unitPrice,
-                ),
+            unitPrice: Number(line.unitPrice),
 
-              lineTotal:
-                finalLineTotals[i],
+            lineTotal: finalLineTotals[i],
 
-              deliveryPartner:
-                i === 0
-                  ? orderForm.deliveryPartner ||
-                    undefined
-                  : undefined,
+            deliveryPartner:
+              i === 0 ? orderForm.deliveryPartner || undefined : undefined,
 
-              deliveryFeeCharged:
-                i === 0
-                  ? orderForm.deliveryFeeCharged ===
-                    ""
-                    ? 0
-                    : Number(
-                        orderForm.deliveryFeeCharged,
-                      )
-                  : null,
+            deliveryFeeCharged:
+              i === 0
+                ? orderForm.deliveryFeeCharged === ""
+                  ? 0
+                  : Number(orderForm.deliveryFeeCharged)
+                : null,
 
-              deliveryCost:
-                i === 0
-                  ? orderForm.deliveryCost ===
-                    ""
-                    ? 0
-                    : Number(
-                        orderForm.deliveryCost,
-                      )
-                  : 0,
-            };
+            deliveryCost:
+              i === 0
+                ? orderForm.deliveryCost === ""
+                  ? 0
+                  : Number(orderForm.deliveryCost)
+                : 0,
+          };
 
-            return createSale(
-              linePayload,
-            );
-          });
+          return createSale(linePayload);
+        });
 
-        await Promise.all(
-          linePromises,
-        );
+        await Promise.all(linePromises);
       }
 
       cancelForm();
@@ -1300,374 +1385,328 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
       load();
     } catch (err) {
-      alert(
-        err.response?.data?.message ||
-          err.message,
-      );
+      alert(err.response?.data?.message || err.message);
     } finally {
       setSaving(false);
     }
   };
 
-// ---------------------------------------------------------
-// TABLE COLUMNS
-// ---------------------------------------------------------
+  // ---------------------------------------------------------
+  // TABLE COLUMNS
+  // ---------------------------------------------------------
 
-const columns = [
-  // -------------------------------------------------------
-  // CHECKBOX
-  // -------------------------------------------------------
+  const columns = [
+    // -------------------------------------------------------
+    // CHECKBOX
+    // -------------------------------------------------------
 
-  {
-    key: "select",
+    {
+      key: "select",
 
-    header: (
-      <input
-        type="checkbox"
-        checked={allVisibleSelected}
-        ref={(el) => {
-          if (el) {
-            el.indeterminate =
-              someVisibleSelected &&
-              !allVisibleSelected;
-          }
-        }}
-        onChange={toggleSelectAll}
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Select all orders"
-        className="h-4 w-4 cursor-pointer accent-current"
-      />
-    ),
-
-    render: (r) => (
-      <input
-        type="checkbox"
-        checked={selectedOrders.has(r.key)}
-        onChange={() =>
-          toggleOrderSelection(r.key)
-        }
-        onClick={(e) => e.stopPropagation()}
-        aria-label={`Select order ${
-          baseOrderId(r.primary.orderId) || ""
-        }`}
-        className="h-4 w-4 cursor-pointer accent-current"
-      />
-    ),
-  },
-
-  // -------------------------------------------------------
-  // DATE
-  // -------------------------------------------------------
-
- {
-  key: "date",
-  header: "Date",
-  render: (r) => {
-    const rawDate = r.primary.orderDate || r.primary.createdAt;
-    const formattedDate = rawDate
-      ? new Date(rawDate).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—";
-
-    return (
-      <div className="font-semibold min-w-[120px] max-w-[150px] text-sm text-gray-700">
-        {formattedDate}
-      </div>
-    );
-  },
-},
-  // -------------------------------------------------------
-  // ORDER + CUSTOMER
-  // -------------------------------------------------------
-
-  {
-  key: "orderCustomer",
-  header: "Order / Customer",
-  render: (r) => (
-    <div className="min-w-[180px] max-w-[230px]">
-      {/* Order ID + Bill No */}
-      <div className="flex items-center gap-2 mb-0.5">
-        <span className="font-normal text-sm text-gray-600">
-          {baseOrderId(r.primary.orderId) || "—"}
-        </span>
-
-        {r.primary.billNo && (
-          <span className="text-[10px] text-gray-500 border-gray-700 border rounded-full px-2 py-0.6 font-medium">
-            {r.primary.billNo}
-          </span>
-        )}
-      </div>
-
-      {/* Customer Name */}
-      <div className="font-semibold text-gray-900 truncate">
-        {r.primary.pointOfContact || "Walk-in customer"}
-      </div>
-
-      {/* Phone */}
-      {r.primary.customerPhone && (
-        <div className="text-xs text-gray-500 truncate">
-          {r.primary.customerPhone}
-        </div>
-      )}
-    </div>
-  ),
-},
-  // -------------------------------------------------------
-  // PRODUCTS
-  // -------------------------------------------------------
-
-  {
-    key: "product",
-
-    header: "Products",
-
-    render: (r) => (
-      <div className="min-w-[180px] max-w-[240px] space-y-0.5">
-        {r.lines.map((l, idx) => (
-          <div
-            key={
-              l._id ||
-              `${l.product?._id || l.product}-${idx}`
+      header: (
+        <input
+          type="checkbox"
+          checked={allVisibleSelected}
+          ref={(el) => {
+            if (el) {
+              el.indeterminate = someVisibleSelected && !allVisibleSelected;
             }
-            className="text-sm truncate"
-            title={`${l.product?.name || "Product"}${
-              l.color ? ` (${l.color})` : ""
-            } ×${l.quantity}`}
-          >
-            <span className="font-medium">
-              {l.product?.name || "Product"}
+          }}
+          onChange={toggleSelectAll}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Select all orders"
+          className="h-4 w-4 cursor-pointer accent-current"
+        />
+      ),
+
+      render: (r) => (
+        <input
+          type="checkbox"
+          checked={selectedOrders.has(r.key)}
+          onChange={() => toggleOrderSelection(r.key)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Select order ${baseOrderId(r.primary.orderId) || ""}`}
+          className="h-4 w-4 cursor-pointer accent-current"
+        />
+      ),
+    },
+
+    // -------------------------------------------------------
+    // DATE
+    // -------------------------------------------------------
+
+    {
+      key: "date",
+      header: "Date",
+      render: (r) => {
+        const rawDate = r.primary.orderDate || r.primary.createdAt;
+        const formattedDate = rawDate
+          ? new Date(rawDate).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+          
+            })
+          : "—";
+
+        return (
+          <div className="font-semibold min-w-[10px] max-w-[150px] text-sm text-gray-700">
+            {formattedDate}
+          </div>
+        );
+      },
+    },
+    // -------------------------------------------------------
+    // ORDER + CUSTOMER
+    // -------------------------------------------------------
+
+    {
+      key: "orderCustomer",
+      header: "Order / Customer",
+      render: (r) => (
+        <div className="min-w-[180px] max-w-[230px]">
+          {/* Order ID + Bill No */}
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="font-normal text-sm text-gray-600">
+              {baseOrderId(r.primary.orderId) || "—"}
             </span>
 
-            {l.color && (
-              <span className="text-muted">
-                {" "}
-                ({l.color})
+            {r.primary.billNo && (
+              <span className="text-[10px] text-gray-500 border-gray-700 border rounded-full px-2 py-0.6 font-medium">
+                {r.primary.billNo}
               </span>
             )}
-
-            <span className="text-muted font-medium">
-              {" "}
-              ×{l.quantity}
-            </span>
           </div>
-        ))}
 
-        {r.lines.length > 1 && (
-          <div className="text-[10px] text-muted">
-            {r.lines.length} products
+          {/* Customer Name */}
+          <div className="font-semibold text-gray-900 truncate">
+            {r.primary.pointOfContact || "Walk-in customer"}
           </div>
-        )}
-      </div>
-    ),
-  },
 
-  // -------------------------------------------------------
-  // GRAND TOTAL
-  // -------------------------------------------------------
+          {/* Phone */}
+          {r.primary.customerPhone && (
+            <div className="text-xs text-gray-500 truncate">
+              {r.primary.customerPhone}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    // -------------------------------------------------------
+    // PRODUCTS
+    // -------------------------------------------------------
 
-  {
-    key: "total",
+    {
+      key: "product",
 
-    header: "Total",
+      header: "Products",
 
-    render: (r) => {
-      const delivery =
-        r.deliveryLine?.deliveryFeeCharged || 0;
+      render: (r) => (
+        <div className="min-w-[180px] max-w-[240px] space-y-0.5">
+          {r.lines.map((l, idx) => (
+            <div
+              key={l._id || `${l.product?._id || l.product}-${idx}`}
+              className="text-sm truncate"
+              title={`${l.product?.name || "Product"}${
+                l.color ? ` (${l.color})` : ""
+              } ×${l.quantity}`}
+            >
+              <span className="font-medium">
+                {l.product?.name || "Product"}
+              </span>
 
-      return (
-        <div className="whitespace-nowrap">
-          <div className="font-semibold">
-            {formatMoney(
-              r.lineTotal + delivery
+              {l.color && <span className="text-muted"> ({l.color})</span>}
+
+              <span className="text-muted font-medium"> ×{l.quantity}</span>
+            </div>
+          ))}
+
+          {r.lines.length > 1 && (
+            <div className="text-[10px] text-muted">
+              {r.lines.length} products
+            </div>
+          )}
+        </div>
+      ),
+    },
+
+    // -------------------------------------------------------
+    // GRAND TOTAL
+    // -------------------------------------------------------
+
+    {
+      key: "total",
+
+      header: "Total",
+
+      render: (r) => {
+        const delivery = r.deliveryLine?.deliveryFeeCharged || 0;
+
+        return (
+          <div className="whitespace-nowrap">
+            <div className="font-semibold">
+              {formatMoney(r.lineTotal + delivery)}
+            </div>
+
+            {delivery > 0 && (
+              <div className="inline-flex items-center gap-1 text-[10px] text-muted">
+                <Truck className="w-3 h-3 text-muted shrink-0" />
+                <span>{delivery}</span>
+              </div>
             )}
           </div>
-
-          {delivery > 0 && (
-  <div className="inline-flex items-center gap-1 text-[10px] text-muted">
-    <Truck className="w-3 h-3 text-muted shrink-0" />
-    <span>{(delivery)}</span>
-  </div>
-)}
-        </div>
-      );
+        );
+      },
     },
-  },
 
-  // -------------------------------------------------------
-  // STATUS
-  // -------------------------------------------------------
+    // -------------------------------------------------------
+    // STATUS
+    // -------------------------------------------------------
 
-  {
-    key: "status",
+    {
+      key: "status",
 
-    header: "Status",
+      header: "Status",
 
-    render: (r) => (
-      <select
-        value={r.primary.status}
-        onChange={(e) =>
-          handleStatusChange(
-            r,
-            e.target.value
-          )
-        }
-        onClick={(e) => e.stopPropagation()}
-        className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
-          STATUS_TONE[r.primary.status] ||
-          "bg-paper text-muted"
-        }`}
-      >
-        {STATUSES.map((s) => (
-          <option
-            key={s}
-            className="bg-paper text-ink"
-          >
-            {s}
-          </option>
-        ))}
-      </select>
-    ),
-  },
+      render: (r) => (
+        <select
+          value={r.primary.status}
+          onChange={(e) => handleStatusChange(r, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
+            STATUS_TONE[r.primary.status] || "bg-paper text-muted"
+          }`}
+        >
+          {STATUSES.map((s) => (
+            <option key={s} className="bg-paper text-ink">
+              {s}
+            </option>
+          ))}
+        </select>
+      ),
+    },
 
-  // -------------------------------------------------------
-  // PAYMENT
-  // -------------------------------------------------------
+    // -------------------------------------------------------
+    // PAYMENT
+    // -------------------------------------------------------
 
-  {
-    key: "payment",
+    {
+      key: "payment",
 
-    header: "Payment",
+      header: "Payment",
 
-    render: (r) => (
-      <select
-        value={r.primary.paidStatus}
-        onChange={(e) =>
-          handlePaidStatusChange(
-            r,
-            e.target.value
-          )
-        }
-        onClick={(e) => e.stopPropagation()}
-        className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
-          PAYMENT_TONE[
-            r.primary.paidStatus
-          ] || "bg-paper text-muted"
-        }`}
-      >
-        {PAID_STATUSES.map((s) => (
-          <option
-            key={s}
-            className="bg-paper text-ink"
-          >
-            {s}
-          </option>
-        ))}
-      </select>
-    ),
-  },
+      render: (r) => (
+        <select
+          value={r.primary.paidStatus}
+          onChange={(e) => handlePaidStatusChange(r, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className={`text-xs rounded-full px-2.5 py-1.5 border-0 font-medium cursor-pointer whitespace-nowrap ${
+            PAYMENT_TONE[r.primary.paidStatus] || "bg-paper text-muted"
+          }`}
+        >
+          {PAID_STATUSES.map((s) => (
+            <option key={s} className="bg-paper text-ink">
+              {s}
+            </option>
+          ))}
+        </select>
+      ),
+    },
 
-  // -------------------------------------------------------
-  // DELIVERY
-  // -------------------------------------------------------
+    // -------------------------------------------------------
+    // DELIVERY
+    // -------------------------------------------------------
 
-  {
-    key: "delivery",
+    {
+      key: "delivery",
 
-    header: "Delivery",
+      header: "Delivery",
 
-    render: (r) => {
-      const partner =
-        r.deliveryLine?.deliveryPartner;
+      render: (r) => {
+        const partner = r.deliveryLine?.deliveryPartner;
 
-      const cost =
-        r.deliveryLine?.deliveryCost;
+        const cost = r.deliveryLine?.deliveryCost;
 
-      return (
-        <div className="min-w-[90px]">
-          <div className="font-medium">
-            {partner || "—"}
+        return (
+          <div className="min-w-[90px]">
+            <div className="font-medium">{partner || "-"}</div>
+
+            {cost ? (
+              <div className="text-[10px] text-muted">
+                <Truck className="w-3 h-3 text-muted shrink-0 inline-block mr-1" />
+                {cost}
+              </div>
+            ) : null}
           </div>
-
-          {cost ? (
-            <div className="text-[10px] text-muted">
-            <Truck className="w-3 h-3 text-muted shrink-0 inline-block mr-1" />
-              {(cost)}
-            </div>
-          ) : null}
-        </div>
-      );
+        );
+      },
     },
-  },
 
-  // -------------------------------------------------------
-  // NOTES
-  // -------------------------------------------------------
+    // -------------------------------------------------------
+    // NOTES
+    // -------------------------------------------------------
 
-  {
-    key: "notes",
+    {
+      key: "notes",
 
-    header: "Notes",
+      header: "Notes",
 
-    render: (r) => (
-      <span
-        className="block max-w-[160px] truncate text-xs text-muted"
-        title={r.primary.notes || ""}
-      >
-        {r.primary.notes || "—"}
-      </span>
-    ),
-  },
-
-  // -------------------------------------------------------
-  // ACTIONS
-  // -------------------------------------------------------
-
-  {
-    key: "actions",
-
-    header: "",
-
-    render: (r) => (
-      <div className="flex gap-2 whitespace-nowrap">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            printInvoice(r);
-          }}
-          className="text-muted hover:text-ink"
-          title="Print invoice"
+      render: (r) => (
+        <span
+          className="block max-w-[160px] truncate text-xs text-muted"
+          title={r.primary.notes || ""}
         >
-          <Printer size={15} />
-        </button>
+          {r.primary.notes || "—"}
+        </span>
+      ),
+    },
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            startEdit(r);
-          }}
-          className="text-muted hover:text-green-700"
-          title="Edit order"
-        >
-          <Pencil size={15} />
-        </button>
+    // -------------------------------------------------------
+    // ACTIONS
+    // -------------------------------------------------------
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDelete(r);
-          }}
-          className="text-muted hover:text-red-700"
-          title="Delete order"
-        >
-          <Trash2 size={15} />
-        </button>
-      </div>
-    ),
-  },
-];
+    {
+      key: "actions",
+
+      header: "",
+
+      render: (r) => (
+        <div className="flex gap-2 whitespace-nowrap">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              printInvoice(r);
+            }}
+            className="text-muted hover:text-ink"
+            title="Print invoice"
+          >
+            <Printer size={15} />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              startEdit(r);
+            }}
+            className="text-muted hover:text-green-700"
+            title="Edit order"
+          >
+            <Pencil size={15} />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(r);
+            }}
+            className="text-muted hover:text-red-700"
+            title="Delete order"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   // ---------------------------------------------------------
   // RETURN
@@ -1675,13 +1714,11 @@ const columns = [
 
   return (
     <div className="space-y-6 px-2 sm:px-4 lg:px-6">
-
       {/* ---------------------------------------------------
           HEADER
       --------------------------------------------------- */}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-
         <div>
           <h1 className="font-display text-xl sm:text-2xl text-ink">
             Sales orders
@@ -1695,7 +1732,6 @@ const columns = [
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-
           <a
             href={salesExportUrl({
               status,
@@ -1704,9 +1740,7 @@ const columns = [
           >
             <FileDown size={15} />
 
-            <span className="hidden sm:inline">
-              Export
-            </span>
+            <span className="hidden sm:inline">Export</span>
           </a>
 
           <button
@@ -1724,15 +1758,9 @@ const columns = [
             }}
             className="flex items-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
           >
-            {showForm ? (
-              <X size={15} />
-            ) : (
-              <Plus size={15} />
-            )}
+            {showForm ? <X size={15} /> : <Plus size={15} />}
 
-            {showForm
-              ? "Cancel"
-              : "New order"}
+            {showForm ? "Cancel" : "New order"}
           </button>
         </div>
       </div>
@@ -1744,416 +1772,267 @@ const columns = [
       {showForm && (
         <form
           onSubmit={handleSubmit}
-          onKeyDown={
-            focusNextOnEnter
-          }
+          onKeyDown={focusNextOnEnter}
           className="bg-card border border-line rounded-lg p-5 space-y-4 w-full"
         >
-
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-
             <input
               placeholder="Order ID (optional)"
-              value={
-                orderForm.orderId
-              }
+              value={orderForm.orderId}
               onChange={(e) =>
                 setOrderForm({
                   ...orderForm,
-                  orderId:
-                    e.target.value,
+                  orderId: e.target.value,
                 })
               }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-muted">
-                  Bill
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    /*
-                     * Once an existing bill has been issued,
-                     * don't allow the user to turn it off.
-                     * The backend also enforces this.
-                     */
-                    if (editingGroup && orderForm.billIssued) {
-                      return;
-                    }
-
-                    setOrderForm((prev) => ({
-                      ...prev,
-                      billIssued: !prev.billIssued,
-                      billNo: !prev.billIssued
-                        ? prev.billNo
-                        : "",
-                    }));
-                  }}
-                  disabled={
-                    Boolean(editingGroup) &&
-                    Boolean(orderForm.billIssued)
-                  }
-                  aria-label={
-                    orderForm.billIssued
-                      ? "Bill issued"
-                      : "Bill not issued"
-                  }
-                  className={`relative h-5 w-9 rounded-full transition-colors ${
-                    orderForm.billIssued
-                      ? "bg-moss"
-                      : "bg-gray-300"
-                  } ${
-                    editingGroup && orderForm.billIssued
-                      ? "cursor-not-allowed opacity-80"
-                      : "cursor-pointer"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                      orderForm.billIssued
-                        ? "translate-x-4"
-                        : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {orderForm.billIssued ? (
-                <input
-                  placeholder="INV-2083/84-0001"
-                  value={orderForm.billNo}
-                  onChange={(e) =>
-                    setOrderForm((prev) => ({
-                      ...prev,
-                      billNo:
-                        e.target.value.toUpperCase(),
-                    }))
-                  }
-                  className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
-                />
-              ) : (
-                <div className="px-3 py-2 text-sm bg-paper/60 rounded-md border border-line text-muted">
-                  No bill
-                </div>
-              )}
-            </div>
-
             <select
-              value={
-                orderForm.status
-              }
+              value={orderForm.status}
               onChange={(e) =>
                 setOrderForm({
                   ...orderForm,
-                  status:
-                    e.target.value,
+                  status: e.target.value,
                 })
               }
               className={`px-3 py-2 text-sm rounded-md font-medium border-0 ${
-                STATUS_TONE[
-                  orderForm.status
-                ] ||
+                STATUS_TONE[orderForm.status] ||
                 "bg-paper text-ink border border-line"
               }`}
             >
-              {STATUSES.map(
-                (s) => (
-                  <option
-                    key={s}
-                    className="bg-paper text-ink"
-                  >
-                    {s}
-                  </option>
-                ),
-              )}
+              {STATUSES.map((s) => (
+                <option key={s} className="bg-paper text-ink">
+                  {s}
+                </option>
+              ))}
             </select>
 
             <select
-              value={
-                orderForm.paidStatus
-              }
+              value={orderForm.paidStatus}
               onChange={(e) =>
                 setOrderForm({
                   ...orderForm,
-                  paidStatus:
-                    e.target.value,
+                  paidStatus: e.target.value,
                 })
               }
               className={`px-3 py-2 text-sm rounded-md font-medium border-0 ${
-                PAYMENT_TONE[
-                  orderForm.paidStatus
-                ] ||
+                PAYMENT_TONE[orderForm.paidStatus] ||
                 "bg-paper text-ink border border-line"
               }`}
             >
-              {PAID_STATUSES.map(
-                (s) => (
-                  <option
-                    key={s}
-                    className="bg-paper text-ink"
-                  >
-                    {s}
-                  </option>
-                ),
-              )}
+              {PAID_STATUSES.map((s) => (
+                <option key={s} className="bg-paper text-ink">
+                  {s}
+                </option>
+              ))}
             </select>
 
             <input
               type="date"
-              value={
-                orderForm.orderDate
-              }
+              value={orderForm.orderDate}
               onChange={(e) =>
                 setOrderForm({
                   ...orderForm,
-                  orderDate:
-                    e.target.value,
+                  orderDate: e.target.value,
                 })
               }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
           </div>
+          {/* BILL */}
+          <div
+            className={
+              orderForm.billIssued
+                ? "flex flex-col gap-1.5"
+                : "flex items-center"
+            }
+          >
+            <div className="flex items-center gap-2.5">
+  <label className="text-xs font-medium text-muted select-none">
+    Bill
+  </label>
+
+  <button
+    type="button"
+    onClick={() => {
+      setOrderForm((prev) => ({
+        ...prev,
+        billIssued: !prev.billIssued,
+        billNo: prev.billIssued ? "" : prev.billNo,
+      }));
+    }}
+    aria-label={orderForm.billIssued ? "Bill enabled" : "Bill disabled"}
+    aria-pressed={orderForm.billIssued}
+    className={`relative h-5 w-9 shrink-0 rounded-full border transition-all duration-200 ease-in-out
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-moss/30
+      ${
+        orderForm.billIssued
+          ? "border-moss bg-moss shadow-sm"
+          : "border-gray-300 bg-gray-200 hover:bg-gray-300"
+      }
+    `}
+  >
+    <span
+      className={`absolute left-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full
+        bg-white shadow-[0_1px_3px_rgba(0,0,0,0.25)]
+        transition-transform duration-200 ease-in-out
+        ${
+          orderForm.billIssued
+            ? "translate-x-4"
+            : "translate-x-0"
+        }`}
+    />
+  </button>
+</div>
+
+            {orderForm.billIssued && (
+              <input
+                type="text"
+                placeholder="Enter bill number"
+                value={orderForm.billNo || ""}
+                onChange={(e) =>
+                  setOrderForm((prev) => ({
+                    ...prev,
+                    billNo: e.target.value.toUpperCase(),
+                  }))
+                }
+                className="w-1/5 px-3 py-2 text-sm bg-paper rounded-md border border-line focus:outline-none focus:border-moss"
+                autoComplete="off"
+              />
+            )}
+          </div>
 
           {/* PRODUCTS */}
 
           <div className="space-y-2">
-
             <p className="text-xs uppercase tracking-wide text-muted">
               Products
             </p>
 
-            {lines.map(
-              (line, i) => {
-                const product =
-                  productById.get(
-                    line.product,
-                  );
+            {lines.map((line, i) => {
+              const product = productById.get(line.product);
 
-                const hasColors =
-                  product?.colors
-                    ?.length > 0;
+              const hasColors = product?.colors?.length > 0;
 
-                const regularTotal =
-                  round2(
-                    (Number(
-                      line.unitPrice,
-                    ) || 0) *
-                      (Number(
-                        line.quantity,
-                      ) || 0),
-                  );
+              const regularTotal = round2(
+                (Number(line.unitPrice) || 0) * (Number(line.quantity) || 0),
+              );
 
-                const lineDiscount =
-                  Math.max(
-                    0,
-                    round2(
-                      regularTotal -
-                        (Number(
-                          line.lineTotal,
-                        ) || 0),
-                    ),
-                  );
+              const lineDiscount = Math.max(
+                0,
+                round2(regularTotal - (Number(line.lineTotal) || 0)),
+              );
 
-                return (
-                  <div
-                    key={i}
-                    className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-start bg-paper/60 rounded-md p-2"
+              return (
+                <div
+                  key={i}
+                  className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-start bg-paper/60 rounded-md p-2"
+                >
+                  <select
+                    required
+                    value={line.product}
+                    onChange={(e) => handleLineProductChange(i, e.target.value)}
+                    className="px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-2 sm:col-span-1"
                   >
+                    <option value="">Select product…</option>
 
-                    <select
-                      required
-                      value={
-                        line.product
-                      }
-                      onChange={(e) =>
-                        handleLineProductChange(
-                          i,
-                          e.target
-                            .value,
-                        )
-                      }
-                      className="px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-2 sm:col-span-1"
-                    >
-                      <option value="">
-                        Select product…
+                    {products.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name} — {p.currentStock} in stock
                       </option>
+                    ))}
+                  </select>
 
-                      {products.map(
-                        (p) => (
-                          <option
-                            key={
-                              p._id
-                            }
-                            value={
-                              p._id
-                            }
-                          >
-                            {p.name} —{" "}
-                            {
-                              p.currentStock
-                            }{" "}
-                            in stock
-                          </option>
-                        ),
-                      )}
+                  {hasColors ? (
+                    <select
+                      value={line.color}
+                      onChange={(e) =>
+                        updateLine(i, {
+                          color: e.target.value,
+                        })
+                      }
+                      className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                    >
+                      {product.colors.map((c) => (
+                        <option key={c.name} value={c.name}>
+                          {c.name} — {c.stock} in stock
+                        </option>
+                      ))}
                     </select>
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-muted flex items-center">
+                      {product
+                        ? `${product.currentStock} in stock`
+                        : "No colour"}
+                    </div>
+                  )}
 
-                    {hasColors ? (
-                      <select
-                        value={
-                          line.color
-                        }
-                        onChange={(e) =>
-                          updateLine(
-                            i,
-                            {
-                              color:
-                                e
-                                  .target
-                                  .value,
-                            },
-                          )
-                        }
-                        className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
-                      >
-                        {product.colors.map(
-                          (c) => (
-                            <option
-                              key={
-                                c.name
-                              }
-                              value={
-                                c.name
-                              }
-                            >
-                              {
-                                c.name
-                              }{" "}
-                              —{" "}
-                              {
-                                c.stock
-                              }{" "}
-                              in stock
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    ) : (
-                      <div className="px-3 py-2 text-xs text-muted flex items-center">
-                        {product
-                          ? `${product.currentStock} in stock`
-                          : "No colour"}
-                      </div>
-                    )}
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    placeholder="Qty"
+                    value={line.quantity}
+                    onChange={(e) =>
+                      handleLineQuantityChange(i, e.target.value)
+                    }
+                    className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                  />
 
+                  <div className="flex items-center gap-1">
                     <input
                       required
                       type="number"
-                      min="1"
-                      placeholder="Qty"
-                      value={
-                        line.quantity
-                      }
+                      min="0"
+                      step="0.01"
+                      placeholder="Line total"
+                      value={line.lineTotal}
                       onChange={(e) =>
-                        handleLineQuantityChange(
-                          i,
-                          e.target
-                            .value,
-                        )
+                        updateLine(i, {
+                          lineTotal: e.target.value,
+
+                          priceTouched: true,
+                        })
                       }
-                      className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                      className="px-3 py-2 text-sm bg-paper rounded-md border border-line flex-1"
                     />
 
-                    <div className="flex items-center gap-1">
+                    {lines.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLine(i)}
+                        className="text-muted hover:text-clay shrink-0"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
 
-                      <input
-                        required
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Line total"
-                        value={
-                          line.lineTotal
-                        }
-                        onChange={(e) =>
-                          updateLine(
-                            i,
-                            {
-                              lineTotal:
-                                e
-                                  .target
-                                  .value,
+                  <div className="col-span-2 sm:col-span-4 -mt-1 flex flex-wrap gap-x-4 text-[11px] text-muted">
+                    {lineDiscount > 0 && (
+                      <span className="text-clay">
+                        Discount: {formatMoney(lineDiscount)}
+                      </span>
+                    )}
 
-                              priceTouched:
-                                true,
-                            },
-                          )
-                        }
-                        className="px-3 py-2 text-sm bg-paper rounded-md border border-line flex-1"
-                      />
-
-                      {lines.length >
-                        1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeLine(
-                              i,
-                            )
-                          }
-                          className="text-muted hover:text-clay shrink-0"
-                        >
-                          <Trash2
-                            size={14}
-                          />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="col-span-2 sm:col-span-4 -mt-1 flex flex-wrap gap-x-4 text-[11px] text-muted">
-
-                      {lineDiscount >
-                        0 && (
+                    {product &&
+                      Number(line.quantity) >
+                        (stockFor(product, line.color) ??
+                          product.currentStock) && (
                         <span className="text-clay">
-                          Discount:{" "}
-                          {formatMoney(
-                            lineDiscount,
-                          )}
+                          Only{" "}
+                          {stockFor(product, line.color) ??
+                            product.currentStock}{" "}
+                          in stock
+                          {line.color ? ` for ${line.color}` : ""} — will
+                          oversell if Delivered.
                         </span>
                       )}
-
-                      {product &&
-                        Number(
-                          line.quantity,
-                        ) >
-                          (stockFor(
-                            product,
-                            line.color,
-                          ) ??
-                            product.currentStock) && (
-                          <span className="text-clay">
-                            Only{" "}
-                            {stockFor(
-                              product,
-                              line.color,
-                            ) ??
-                              product.currentStock}{" "}
-                            in stock
-                            {line.color
-                              ? ` for ${line.color}`
-                              : ""}{" "}
-                            — will oversell if Delivered.
-                          </span>
-                        )}
-                    </div>
                   </div>
-                );
-              },
-            )}
+                </div>
+              );
+            })}
 
             <button
               type="button"
@@ -2168,59 +2047,37 @@ const columns = [
 
           {lines.length > 1 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-paper/60 rounded-md p-3">
-
               <div className="text-sm">
-                <p className="text-xs text-muted">
-                  Subtotal
-                </p>
+                <p className="text-xs text-muted">Subtotal</p>
 
-                <p className="font-mono tabular">
-                  {formatMoney(
-                    subtotal,
-                  )}
-                </p>
+                <p className="font-mono tabular">{formatMoney(subtotal)}</p>
               </div>
 
               <label className="text-xs text-muted flex flex-col gap-1">
                 Order discount
-
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   placeholder="0"
-                  value={
-                    orderDiscount
-                  }
-                  onChange={(e) =>
-                    setOrderDiscount(
-                      e.target.value,
-                    )
-                  }
+                  value={orderDiscount}
+                  onChange={(e) => setOrderDiscount(e.target.value)}
                   className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
                 />
               </label>
 
               <div className="text-sm">
-                <p className="text-xs text-muted">
-                  Final product total
-                </p>
+                <p className="text-xs text-muted">Final product total</p>
 
                 <p className="font-mono tabular">
-                  {formatMoney(
-                    finalProductTotal,
-                  )}
+                  {formatMoney(finalProductTotal)}
                 </p>
               </div>
 
               <div className="text-sm">
-                <p className="text-xs text-muted">
-                  Split across lines
-                </p>
+                <p className="text-xs text-muted">Split across lines</p>
 
-                <p className="text-xs text-muted">
-                  proportionally, on save
-                </p>
+                <p className="text-xs text-muted">proportionally, on save</p>
               </div>
             </div>
           )}
@@ -2228,86 +2085,56 @@ const columns = [
           {/* DELIVERY */}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-
             <label className="text-xs text-muted flex flex-col gap-1">
               Delivery partner
-
               <div className="relative">
-
                 <button
                   type="button"
-                  onClick={() =>
-                    setDeliveryMenuOpen(
-                      (prev) =>
-                        !prev,
-                    )
-                  }
+                  onClick={() => setDeliveryMenuOpen((prev) => !prev)}
                   className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-left flex items-center justify-between"
                 >
-                  <span>
-                    {orderForm.deliveryPartner ||
-                      "Select partner…"}
-                  </span>
+                  <span>{orderForm.deliveryPartner || "Select partner…"}</span>
 
-                  <span className="text-xs text-muted">
-                    ▾
-                  </span>
+                  <span className="text-xs text-muted">▾</span>
                 </button>
 
                 {deliveryMenuOpen && (
                   <div className="absolute z-20 mt-1 w-full rounded-md border border-line bg-paper shadow-sm max-h-64 overflow-auto">
-
                     <button
                       type="button"
-                      onClick={
-                        addPartner
-                      }
+                      onClick={addPartner}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-paper/80 border-b border-line"
                     >
                       + Add courier...
                     </button>
 
-                    {deliveryPartners.map(
-                      (partner) => (
-                        <div
-                          key={
-                            partner
-                          }
-                          className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-line last:border-b-0"
+                    {deliveryPartners.map((partner) => (
+                      <div
+                        key={partner}
+                        className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-line last:border-b-0"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => selectPartner(partner)}
+                          className="flex-1 text-left text-sm hover:text-moss-dark"
                         >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              selectPartner(
-                                partner,
-                              )
-                            }
-                            className="flex-1 text-left text-sm hover:text-moss-dark"
-                          >
-                            {
-                              partner
-                            }
-                          </button>
+                          {partner}
+                        </button>
 
-                          <button
-                            type="button"
-                            onClick={(
-                              e,
-                            ) => {
-                              e.stopPropagation();
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
 
-                              deletePartner(
-                                partner,
-                              );
-                            }}
-                            className="h-5 w-5 rounded-sm text-[11px] text-muted hover:bg-clay-light hover:text-clay"
-                            aria-label={`Delete ${partner}`}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ),
-                    )}
+                            deletePartner(partner);
+                          }}
+                          className="h-5 w-5 rounded-sm text-[11px] text-muted hover:bg-clay-light hover:text-clay"
+                          aria-label={`Delete ${partner}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -2315,20 +2142,16 @@ const columns = [
 
             <label className="text-xs text-muted flex flex-col gap-1">
               Delivery fee charged to customer
-
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 placeholder="Amount customer pays"
-                value={
-                  orderForm.deliveryFeeCharged
-                }
+                value={orderForm.deliveryFeeCharged}
                 onChange={(e) =>
                   setOrderForm({
                     ...orderForm,
-                    deliveryFeeCharged:
-                      e.target.value,
+                    deliveryFeeCharged: e.target.value,
                   })
                 }
                 className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
@@ -2337,20 +2160,16 @@ const columns = [
 
             <label className="text-xs text-muted flex flex-col gap-1">
               Actual delivery cost
-
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 placeholder="Amount paid to courier"
-                value={
-                  orderForm.deliveryCost
-                }
+                value={orderForm.deliveryCost}
                 onChange={(e) =>
                   setOrderForm({
                     ...orderForm,
-                    deliveryCost:
-                      e.target.value,
+                    deliveryCost: e.target.value,
                   })
                 }
                 className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
@@ -2358,14 +2177,10 @@ const columns = [
             </label>
 
             <div className="text-sm flex flex-col justify-end">
-              <p className="text-xs text-muted">
-                Grand total
-              </p>
+              <p className="text-xs text-muted">Grand total</p>
 
               <p className="font-mono tabular font-medium">
-                {formatMoney(
-                  grandTotal,
-                )}
+                {formatMoney(grandTotal)}
               </p>
             </div>
           </div>
@@ -2373,17 +2188,13 @@ const columns = [
           {/* CUSTOMER */}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-
             <input
               placeholder="Customer name"
-              value={
-                orderForm.pointOfContact
-              }
+              value={orderForm.pointOfContact}
               onChange={(e) =>
                 setOrderForm({
                   ...orderForm,
-                  pointOfContact:
-                    e.target.value,
+                  pointOfContact: e.target.value,
                 })
               }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
@@ -2391,14 +2202,11 @@ const columns = [
 
             <input
               placeholder="Customer phone"
-              value={
-                orderForm.customerPhone
-              }
+              value={orderForm.customerPhone}
               onChange={(e) =>
                 setOrderForm({
                   ...orderForm,
-                  customerPhone:
-                    e.target.value,
+                  customerPhone: e.target.value,
                 })
               }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
@@ -2406,14 +2214,11 @@ const columns = [
 
             <input
               placeholder="Notes"
-              value={
-                orderForm.notes
-              }
+              value={orderForm.notes}
               onChange={(e) =>
                 setOrderForm({
                   ...orderForm,
-                  notes:
-                    e.target.value,
+                  notes: e.target.value,
                 })
               }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2"
@@ -2424,11 +2229,7 @@ const columns = [
             disabled={saving}
             className="bg-moss text-white text-sm rounded-md py-2 px-6 hover:bg-moss-dark disabled:opacity-50"
           >
-            {saving
-              ? "Saving…"
-              : editingGroup
-                ? "Update order"
-                : "Save order"}
+            {saving ? "Saving…" : editingGroup ? "Update order" : "Save order"}
           </button>
         </form>
       )}
@@ -2445,622 +2246,453 @@ const columns = [
     MOBILE SALES LIST
 --------------------------------------------------- */}
 
-<div className="md:hidden space-y-2">
-
-  {/* MOBILE SEARCH + FILTERS */}
-  <div className="space-y-2">
-    <input
-      type="text"
-      value={search}
-      onChange={(e) => {
-        setSearch(e.target.value);
-        setPage(1);
-      }}
-      placeholder="Search order, customer, phone, product..."
-      className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
-    />
-
-    <div className="grid grid-cols-2 gap-2">
-      <input
-        type="date"
-        value={fromDate}
-        onChange={(e) => {
-          setFromDate(e.target.value);
-          setPage(1);
-        }}
-        className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
-      />
-
-      <input
-        type="date"
-        value={toDate}
-        onChange={(e) => {
-          setToDate(e.target.value);
-          setPage(1);
-        }}
-        className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
-      />
-
-      <select
-        value={status}
-        onChange={(e) => {
-          setStatus(e.target.value);
-          setPage(1);
-        }}
-        className="col-span-2 w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
-      >
-        <option value="">All Status</option>
-
-        {STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-    </div>
-  </div>
-
-  {/* SELECT ALL / BULK STATUS */}
-  <div className="flex items-center justify-between gap-2 py-1">
-
-    <label className="flex items-center gap-2 text-xs text-muted">
-      <input
-        type="checkbox"
-        checked={allVisibleSelected}
-        ref={(el) => {
-          if (el) {
-            el.indeterminate =
-              someVisibleSelected &&
-              !allVisibleSelected;
-          }
-        }}
-        onChange={toggleSelectAll}
-        className="h-4 w-4 cursor-pointer accent-current"
-      />
-
-      Select all
-    </label>
-
-    <div className="flex items-center gap-1.5">
-
-      {selectedOrders.size > 0 && (
-        <>
-          <span className="text-[10px] text-muted">
-            {selectedOrders.size} selected
-          </span>
-
-          <select
-            value={bulkStatus}
+      <div className="md:hidden space-y-2">
+        {/* MOBILE SEARCH + FILTERS */}
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={search}
             onChange={(e) => {
-              const value = e.target.value;
-
-              setBulkStatus(value);
-
-              if (value) {
-                handleBulkStatusChange(value);
-              }
+              setSearch(e.target.value);
+              setPage(1);
             }}
-            disabled={bulkUpdating}
-            className="text-[11px] bg-paper rounded-md border border-line px-2 py-1 disabled:opacity-50"
-          >
-            <option value="">
-              {bulkUpdating
-                ? "Updating..."
-                : "Change status"}
-            </option>
+            placeholder="Search order, customer, phone, product..."
+            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+          />
 
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setPage(1);
+              }}
+              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+            />
+
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setPage(1);
+              }}
+              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+            />
+
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+              className="col-span-2 w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+            >
+              <option value="">All Status</option>
+
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* SELECT ALL / BULK STATUS */}
+        <div className="flex items-center justify-between gap-2 py-1">
+          <label className="flex items-center gap-2 text-xs text-muted">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              ref={(el) => {
+                if (el) {
+                  el.indeterminate = someVisibleSelected && !allVisibleSelected;
+                }
+              }}
+              onChange={toggleSelectAll}
+              className="h-4 w-4 cursor-pointer accent-current"
+            />
+            Select all
+          </label>
+
+          <div className="flex items-center gap-1.5">
+            {selectedOrders.size > 0 && (
+              <>
+                <span className="text-[10px] text-muted">
+                  {selectedOrders.size} selected
+                </span>
+
+                <select
+                  value={bulkStatus}
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    setBulkStatus(value);
+
+                    if (value) {
+                      handleBulkStatusChange(value);
+                    }
+                  }}
+                  disabled={bulkUpdating}
+                  className="text-[11px] bg-paper rounded-md border border-line px-2 py-1 disabled:opacity-50"
+                >
+                  <option value="">
+                    {bulkUpdating ? "Updating..." : "Change status"}
+                  </option>
+
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  disabled={bulkUpdating}
+                  className="text-[10px] text-muted hover:text-ink"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+
+            <span className="text-[10px] text-muted">
+              {groupedSales.length} orders
+            </span>
+          </div>
+        </div>
+
+        {/* VERTICAL SCROLLING ORDER LIST */}
+        <div className="max-h-[calc(100vh-250px)] overflow-y-auto overflow-x-hidden space-y-1.5 pr-1 overscroll-contain">
+          {groupedSales.map((r) => {
+            const delivery = Number(r.deliveryLine?.deliveryFeeCharged) || 0;
+
+            const total = Number(r.lineTotal || 0) + delivery;
+
+            const billNo = r.lines.find((l) => l.billNo)?.billNo || "";
+
+            const rawDate = r.primary.orderDate || r.primary.createdAt;
+
+            const formattedDate = rawDate
+              ? new Date(rawDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "—";
+
+            const customer = r.primary.pointOfContact || "Walk-in customer";
+
+            const phone = r.primary.customerPhone;
+
+            const partner = r.deliveryLine?.deliveryPartner;
+
+            const deliveryCost = Number(r.deliveryLine?.deliveryCost) || 0;
+
+            const isSelected = selectedOrders.has(r.key);
+
+            return (
+              <div
+                key={r.key}
+                className={`bg-card border rounded-md px-2.5 py-2 shadow-sm overflow-hidden ${
+                  isSelected ? "border-moss" : "border-line"
+                }`}
+              >
+                {/* TOP ROW */}
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleOrderSelection(r.key)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select order ${
+                      baseOrderId(r.primary.orderId) || ""
+                    }`}
+                    className="h-4 w-4 mt-0.5 shrink-0 cursor-pointer accent-current"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-xs text-ink truncate">
+                            {baseOrderId(r.primary.orderId) || "—"}
+                          </span>
+
+                          <span className="text-[9px] text-muted shrink-0">
+                            {formattedDate}
+                          </span>
+                        </div>
+
+                        {/* BILL BELOW ORDER ID */}
+                        {billNo && (
+                          <div className="text-[10px] text-muted truncate  ">
+                            <LucideReceiptText className="w-3 h-3 shrink-0 inline-block mr-1 " />
+                            <span className="text-[10px] text-muted truncate">
+                              {billNo}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-[9px] text-muted">Total</div>
+
+                        <div className="font-semibold text-xs">
+                          {formatMoney(total)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CUSTOMER */}
+                <div className="ml-6 mt-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-semibold text-sm  text-ink truncate">
+                      {customer}
+                    </span>
+
+                    {phone && (
+                      <>
+                        <span className="text-[9px] text-muted">•</span>
+
+                        <span className="text-[10px] text-muted truncate">
+                          {phone}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* PRODUCTS */}
+                <div className="ml-6 mt-1 space-y-0.5">
+                  {r.lines.map((l, idx) => (
+                    <div
+                      key={l._id || `${l.product?._id || l.product}-${idx}`}
+                      className="text-[10px] leading-4 truncate"
+                      title={`${l.product?.name || "Product"}${
+                        l.color ? ` (${l.color})` : ""
+                      } ×${l.quantity}`}
+                    >
+                      <span className="font-medium">
+                        {l.product?.name || "Product"}
+                      </span>
+
+                      {l.color && (
+                        <span className="text-muted"> ({l.color})</span>
+                      )}
+
+                      <span className="text-muted font-medium">
+                        {" "}
+                        ×{l.quantity}
+                      </span>
+                    </div>
+                  ))}
+
+                  {r.lines.length > 1 && (
+                    <div className="text-[9px] text-muted">
+                      {r.lines.length} products
+                    </div>
+                  )}
+                </div>
+
+                {/* NOTES — IMPORTANT / ALWAYS VISIBLE */}
+                {r.primary.notes && (
+                  <div className="ml-6 mt-1.5 rounded-md bg-amber-light/40 border border-amber/20 px-2 py-1.5">
+                    <div className="text-[8px] font-semibold uppercase tracking-wide text-amber leading-3">
+                      Notes
+                    </div>
+
+                    <div className="text-[10px] leading-4 text-ink whitespace-pre-wrap break-words">
+                      {r.primary.notes}
+                    </div>
+                  </div>
+                )}
+
+                {/* STATUS + PAYMENT */}
+                <div className="ml-6 mt-1.5 flex items-center gap-2">
+                  {/* STATUS DROPDOWN */}
+                  <select
+                    value={r.primary.status}
+                    onChange={(e) => handleStatusChange(r, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className={`text-[10px] rounded-full px-2 py-1 border-0 font-medium ${
+                      STATUS_TONE[r.primary.status] || "bg-paper text-muted"
+                    }`}
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s} className="bg-paper text-ink">
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* PAYMENT STATUS — TEXT ONLY */}
+                  <span
+                    className={`text-[10px] rounded-full px-2 py-1 font-medium ${
+                      PAYMENT_TONE[r.primary.paidStatus] ||
+                      "bg-paper text-muted"
+                    }`}
+                  >
+                    {r.primary.paidStatus || "COD"}
+                  </span>
+                </div>
+                {/* DELIVERY + ACTIONS */}
+                <div className="ml-6 mt-1.5 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    {partner ? (
+                      <div className="flex items-center gap-1 text-[9px] text-muted truncate">
+                        <Truck className="w-3 h-3 shrink-0" />
+
+                        <span className="truncate">{partner}</span>
+
+                        {deliveryCost > 0 && (
+                          <span
+                            className="shrink-0"
+                            style={{ marginTop: "0.2rem" }}
+                          >
+                            {formatMoney(deliveryCost)}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-[9px] text-muted">No courier</div>
+                    )}
+                  </div>
+
+                  {/* ACTIONS */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        printInvoice(r);
+                      }}
+                      className="text-muted hover:text-ink"
+                      title="Print invoice"
+                    >
+                      <Printer size={14} />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit(r);
+                      }}
+                      className="text-muted hover:text-green-700"
+                      title="Edit order"
+                    >
+                      <Pencil size={14} />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(r);
+                      }}
+                      className="text-muted hover:text-red-700"
+                      title="Delete order"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {groupedSales.length === 0 && (
+            <div className="py-10 text-center text-sm text-muted">
+              No sales orders match your filters.
+            </div>
+          )}
+        </div>
+
+        {/* MOBILE PAGINATION */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
+          >
+            Previous
+          </button>
+
+          <span className="text-[10px] text-muted">
+            Page {page} of {pages || 1}
+          </span>
 
           <button
             type="button"
-            onClick={clearSelection}
-            disabled={bulkUpdating}
-            className="text-[10px] text-muted hover:text-ink"
+            disabled={page >= pages}
+            onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
           >
-            Clear
+            Next
           </button>
-        </>
-      )}
-
-      <span className="text-[10px] text-muted">
-        {groupedSales.length} orders
-      </span>
-    </div>
-  </div>
-
-  {/* VERTICAL SCROLLING ORDER LIST */}
-  <div
-    className="max-h-[calc(100vh-250px)] overflow-y-auto overflow-x-hidden space-y-1.5 pr-1 overscroll-contain"
-  >
-
-    {groupedSales.map((r) => {
-      const delivery =
-        Number(
-          r.deliveryLine?.deliveryFeeCharged
-        ) || 0;
-
-      const total =
-        Number(r.lineTotal || 0) +
-        delivery;
-
-      const billNo =
-        r.lines.find((l) => l.billNo)?.billNo ||
-        "";
-
-      const rawDate =
-        r.primary.orderDate ||
-        r.primary.createdAt;
-
-      const formattedDate = rawDate
-        ? new Date(rawDate).toLocaleDateString(
-            "en-US",
-            {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            }
-          )
-        : "—";
-
-      const customer =
-        r.primary.pointOfContact ||
-        "Walk-in customer";
-
-      const phone =
-        r.primary.customerPhone;
-
-      const partner =
-        r.deliveryLine?.deliveryPartner;
-
-      const deliveryCost =
-        Number(
-          r.deliveryLine?.deliveryCost
-        ) || 0;
-
-      const isSelected =
-        selectedOrders.has(r.key);
-
-      return (
-        <div
-          key={r.key}
-          className={`bg-card border rounded-md px-2.5 py-2 shadow-sm overflow-hidden ${
-            isSelected
-              ? "border-moss"
-              : "border-line"
-          }`}
-        >
-
-          {/* TOP ROW */}
-          <div className="flex items-start gap-2">
-
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() =>
-                toggleOrderSelection(r.key)
-              }
-              onClick={(e) =>
-                e.stopPropagation()
-              }
-              aria-label={`Select order ${
-                baseOrderId(
-                  r.primary.orderId
-                ) || ""
-              }`}
-              className="h-4 w-4 mt-0.5 shrink-0 cursor-pointer accent-current"
-            />
-
-            <div className="min-w-0 flex-1">
-
-              <div className="flex items-center justify-between gap-2">
-
-                <div className="min-w-0">
-
-                  <div className="flex items-center gap-1.5">
-
-                    <span className="font-semibold text-xs text-ink truncate">
-                      {baseOrderId(
-                        r.primary.orderId
-                      ) || "—"}
-                    </span>
-
-                    <span className="text-[9px] text-muted shrink-0">
-                      {formattedDate}
-                    </span>
-
-                  </div>
-
-                  {/* BILL BELOW ORDER ID */}
-                  {billNo && (
-                    <div className="text-[9px] text-muted leading-3">
-                      Bill: {billNo}
-                    </div>
-                  )}
-
-                </div>
-
-                <div className="text-right shrink-0">
-
-                  <div className="text-[9px] text-muted">
-                    Total
-                  </div>
-
-                  <div className="font-semibold text-xs">
-                    {formatMoney(total)}
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-
-          {/* CUSTOMER */}
-          <div className="ml-6 mt-1">
-
-            <div className="flex items-center gap-1.5 min-w-0">
-
-              <span className="font-medium text-xs text-ink truncate">
-                {customer}
-              </span>
-
-              {phone && (
-                <>
-                  <span className="text-[9px] text-muted">
-                    •
-                  </span>
-
-                  <span className="text-[10px] text-muted truncate">
-                    {phone}
-                  </span>
-                </>
-              )}
-
-            </div>
-
-          </div>
-
-          {/* PRODUCTS */}
-          <div className="ml-6 mt-1 space-y-0.5">
-
-            {r.lines.map((l, idx) => (
-              <div
-                key={
-                  l._id ||
-                  `${l.product?._id || l.product}-${idx}`
-                }
-                className="text-[10px] leading-4 truncate"
-                title={`${l.product?.name || "Product"}${
-                  l.color
-                    ? ` (${l.color})`
-                    : ""
-                } ×${l.quantity}`}
-              >
-
-                <span className="font-medium">
-                  {l.product?.name ||
-                    "Product"}
-                </span>
-
-                {l.color && (
-                  <span className="text-muted">
-                    {" "}
-                    ({l.color})
-                  </span>
-                )}
-
-                <span className="text-muted font-medium">
-                  {" "}
-                  ×{l.quantity}
-                </span>
-
-              </div>
-            ))}
-
-            {r.lines.length > 1 && (
-              <div className="text-[9px] text-muted">
-                {r.lines.length} products
-              </div>
-            )}
-
-          </div>
-
-          {/* NOTES — IMPORTANT / ALWAYS VISIBLE */}
-          {r.primary.notes && (
-            <div className="ml-6 mt-1.5 rounded-md bg-amber-light/40 border border-amber/20 px-2 py-1.5">
-
-              <div className="text-[8px] font-semibold uppercase tracking-wide text-amber leading-3">
-                Notes
-              </div>
-
-              <div className="text-[10px] leading-4 text-ink whitespace-pre-wrap break-words">
-                {r.primary.notes}
-              </div>
-
-            </div>
-          )}
-
-          {/* STATUS + PAYMENT */}
-          <div className="ml-6 mt-1.5 grid grid-cols-2 gap-1.5">
-
-            <select
-              value={r.primary.status}
-              onChange={(e) =>
-                handleStatusChange(
-                  r,
-                  e.target.value
-                )
-              }
-              onClick={(e) =>
-                e.stopPropagation()
-              }
-              className={`w-full text-[10px] rounded-full px-2 py-1 border-0 font-medium ${
-                STATUS_TONE[
-                  r.primary.status
-                ] ||
-                "bg-paper text-muted"
-              }`}
-            >
-              {STATUSES.map((s) => (
-                <option
-                  key={s}
-                  value={s}
-                  className="bg-paper text-ink"
-                >
-                  {s}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={r.primary.paidStatus}
-              onChange={(e) =>
-                handlePaidStatusChange(
-                  r,
-                  e.target.value
-                )
-              }
-              onClick={(e) =>
-                e.stopPropagation()
-              }
-              className={`w-full text-[10px] rounded-full px-2 py-1 border-0 font-medium ${
-                PAYMENT_TONE[
-                  r.primary.paidStatus
-                ] ||
-                "bg-paper text-muted"
-              }`}
-            >
-              {PAID_STATUSES.map((s) => (
-                <option
-                  key={s}
-                  value={s}
-                  className="bg-paper text-ink"
-                >
-                  {s}
-                </option>
-              ))}
-            </select>
-
-          </div>
-
-          {/* DELIVERY + ACTIONS */}
-          <div className="ml-6 mt-1.5 flex items-center justify-between gap-2">
-
-            <div className="min-w-0">
-
-              {partner ? (
-                <div className="flex items-center gap-1 text-[9px] text-muted truncate">
-
-                  <Truck
-                    className="w-3 h-3 shrink-0"
-                  />
-
-                  <span className="truncate">
-                    {partner}
-                  </span>
-
-                  {deliveryCost > 0 && (
-                    <span className="shrink-0">
-                      • {formatMoney(
-                        deliveryCost
-                      )}
-                    </span>
-                  )}
-
-                </div>
-              ) : (
-                <div className="text-[9px] text-muted">
-                  No courier
-                </div>
-              )}
-
-            </div>
-
-            {/* ACTIONS */}
-            <div className="flex items-center gap-3 shrink-0">
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  printInvoice(r);
-                }}
-                className="text-muted hover:text-ink"
-                title="Print invoice"
-              >
-                <Printer size={14} />
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEdit(r);
-                }}
-                className="text-muted hover:text-green-700"
-                title="Edit order"
-              >
-                <Pencil size={14} />
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(r);
-                }}
-                className="text-muted hover:text-red-700"
-                title="Delete order"
-              >
-                <Trash2 size={14} />
-              </button>
-
-            </div>
-
-          </div>
-
         </div>
-      );
-    })}
-
-    {groupedSales.length === 0 && (
-      <div className="py-10 text-center text-sm text-muted">
-        No sales orders match your filters.
       </div>
-    )}
-
-  </div>
-
-  {/* MOBILE PAGINATION */}
-  <div className="flex items-center justify-between pt-1">
-
-    <button
-      type="button"
-      disabled={page <= 1}
-      onClick={() =>
-        setPage((p) =>
-          Math.max(1, p - 1)
-        )
-      }
-      className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
-    >
-      Previous
-    </button>
-
-    <span className="text-[10px] text-muted">
-      Page {page} of {pages || 1}
-    </span>
-
-    <button
-      type="button"
-      disabled={page >= pages}
-      onClick={() =>
-        setPage((p) =>
-          Math.min(pages, p + 1)
-        )
-      }
-      className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
-    >
-      Next
-    </button>
-
-  </div>
-
-</div>
 
       {/* ---------------------------------------------------
           DESKTOP SALES TABLE
       --------------------------------------------------- */}
       <div className="hidden md:block w-full overflow-x-auto min-w-full">
-
         <DataTable
           columns={columns}
           rows={groupedSales}
-
           searchValue={search}
-
           onSearchChange={(v) => {
             setSearch(v);
             setPage(1);
           }}
-
-          onRowDoubleClick={
-            startEdit
-          }
-
+          onRowDoubleClick={startEdit}
           searchPlaceholder="Search order ID, customer, phone, or product…"
-
           filters={
             <div className="flex flex-wrap gap-2 items-center">
-
               {/* -----------------------------------------
                   BULK STATUS CONTROLS
               ----------------------------------------- */}
 
-              {selectedOrders.size >
-                0 && (
+              {selectedOrders.size > 0 && (
                 <div className="flex items-center gap-2 mr-1">
-
                   <span className="text-xs text-muted whitespace-nowrap">
-                    {selectedOrders.size}{" "}
-                    selected
+                    {selectedOrders.size} selected
                   </span>
 
                   <select
-                    value={
-                      bulkStatus
-                    }
-                    onChange={(
-                      e,
-                    ) => {
-                      const value =
-                        e.target
-                          .value;
+                    value={bulkStatus}
+                    onChange={(e) => {
+                      const value = e.target.value;
 
-                      setBulkStatus(
-                        value,
-                      );
+                      setBulkStatus(value);
 
                       if (value) {
-                        handleBulkStatusChange(
-                          value,
-                        );
+                        handleBulkStatusChange(value);
                       }
                     }}
-                    disabled={
-                      bulkUpdating
-                    }
+                    disabled={bulkUpdating}
                     className="text-sm bg-paper rounded-md border border-line px-3 py-1.5 font-medium disabled:opacity-50"
                   >
                     <option value="">
-                      {bulkUpdating
-                        ? "Updating…"
-                        : "Change status…"}
+                      {bulkUpdating ? "Updating…" : "Change status…"}
                     </option>
 
-                    {STATUSES.map(
-                      (s) => (
-                        <option
-                          key={s}
-                          value={s}
-                        >
-                          {s}
-                        </option>
-                      ),
-                    )}
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
                   </select>
 
                   <button
                     type="button"
-                    onClick={
-                      clearSelection
-                    }
-                    disabled={
-                      bulkUpdating
-                    }
+                    onClick={clearSelection}
+                    disabled={bulkUpdating}
                     className="text-xs text-muted hover:text-ink disabled:opacity-50"
                   >
                     Clear
@@ -3074,13 +2706,9 @@ const columns = [
 
               <input
                 type="date"
-                value={
-                  fromDate
-                }
+                value={fromDate}
                 onChange={(e) => {
-                  setFromDate(
-                    e.target.value,
-                  );
+                  setFromDate(e.target.value);
                   setPage(1);
                 }}
                 className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
@@ -3090,9 +2718,7 @@ const columns = [
                 type="date"
                 value={toDate}
                 onChange={(e) => {
-                  setToDate(
-                    e.target.value,
-                  );
+                  setToDate(e.target.value);
                   setPage(1);
                 }}
                 className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
@@ -3105,35 +2731,24 @@ const columns = [
               <select
                 value={status}
                 onChange={(e) => {
-                  setStatus(
-                    e.target.value,
-                  );
+                  setStatus(e.target.value);
                   setPage(1);
                 }}
                 className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
               >
-                <option value="">
-                  All Status
-                </option>
+                <option value="">All Status</option>
 
-                {STATUSES.map(
-                  (s) => (
-                    <option
-                      key={s}
-                    value={s}
-                    >
-                      {s}
-                    </option>
-                  ),
-                )}
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </select>
             </div>
           }
-
           page={page}
           pages={pages}
           onPageChange={setPage}
-
           emptyLabel="No sales orders match your filters."
         />
       </div>
