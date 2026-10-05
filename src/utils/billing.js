@@ -2,12 +2,12 @@ export const DEFAULT_BUSINESS_PROFILE = {
   companyName: "Zeno",
   logoUrl:
     "https://wsrv.nl/?url=https%3A%2F%2Fcdn.zalient.shop%2Fshops%2Fshop_1769109112_0a83031d20aaa650.png&w=1920&q=80&output=webp&we&default=1",
-  phone: "",
   panNo: "",
+  phone: "",
   address: "",
   email: "",
   website: "",
-  invoiceNote: "Thank you for your business.",
+  invoiceNote: "Thank you for your purchase.",
 };
 
 export function getBusinessProfile() {
