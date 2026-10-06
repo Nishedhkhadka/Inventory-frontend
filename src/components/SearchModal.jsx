@@ -1,37 +1,48 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, X, Package, Receipt, ShoppingBag } from "lucide-react";
+import { Search, X, Package, Receipt, ShoppingBag, Users } from "lucide-react";
 import { search } from "../api/search";
 import { formatMoney } from "../utils/currency";
 
-
 /**
- * A Cmd/Ctrl+K search palette. Fans a query out across products, sales, and
- * expenses (purchases) and lets the person jump straight to the matching
- * record's page with that term pre-filled in the page's own search box.
+ * A Cmd/Ctrl+K search palette. Fans a query out across products, sales,
+ * expenses (purchases), and contacts, letting the user jump straight
+ * to the matching record's page.
  */
 export default function SearchModal({ open, onClose, onNavigate }) {
   const [q, setQ] = useState("");
-  const [results, setResults] = useState({ products: [], sales: [], purchases: [] });
+  const [results, setResults] = useState({
+    products: [],
+    sales: [],
+    purchases: [],
+    contacts: [],
+  });
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
     if (open) {
       setQ("");
-      setResults({ products: [], sales: [], purchases: [] });
+      setResults({ products: [], sales: [], purchases: [], contacts: [] });
       setTimeout(() => inputRef.current?.focus(), 30);
     }
   }, [open]);
 
   useEffect(() => {
     if (!open || !q.trim()) {
-      setResults({ products: [], sales: [], purchases: [] });
+      setResults({ products: [], sales: [], purchases: [], contacts: [] });
       return;
     }
     setLoading(true);
     const handle = setTimeout(() => {
       search(q.trim())
-        .then(setResults)
+        .then((res) =>
+          setResults({
+            products: res.products || [],
+            sales: res.sales || [],
+            purchases: res.purchases || [],
+            contacts: res.contacts || [],
+          })
+        )
         .finally(() => setLoading(false));
     }, 220);
     return () => clearTimeout(handle);
@@ -52,10 +63,17 @@ export default function SearchModal({ open, onClose, onNavigate }) {
     onClose();
   };
 
-  const hasAny = results.products.length || results.sales.length || results.purchases.length;
+  const hasAny =
+    results.products.length ||
+    results.sales.length ||
+    results.purchases.length ||
+    results.contacts.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4 bg-ink/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4 bg-ink/40"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-lg bg-card border border-line rounded-lg shadow-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -66,7 +84,7 @@ export default function SearchModal({ open, onClose, onNavigate }) {
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search products, orders, expenses…"
+            placeholder="Search products, orders, bills, expenses, contacts…"
             className="flex-1 bg-transparent text-sm focus:outline-none"
           />
           <button onClick={onClose} className="text-muted hover:text-ink">
@@ -77,11 +95,13 @@ export default function SearchModal({ open, onClose, onNavigate }) {
         <div className="max-h-[50vh] overflow-y-auto">
           {!q.trim() && (
             <p className="px-4 py-6 text-sm text-muted text-center">
-              Start typing to search across inventory, sales, and expenses.
+              Start typing to search across inventory, sales, bills, expenses, and contacts.
             </p>
           )}
           {q.trim() && !loading && !hasAny && (
-            <p className="px-4 py-6 text-sm text-muted text-center">No matches for "{q}".</p>
+            <p className="px-4 py-6 text-sm text-muted text-center">
+              No matches for "{q}".
+            </p>
           )}
 
           {results.products.length > 0 && (
@@ -100,15 +120,30 @@ export default function SearchModal({ open, onClose, onNavigate }) {
 
           {results.sales.length > 0 && (
             <ResultGroup label="Sales orders" icon={Receipt}>
-              {results.sales.map((s) => (
-                <ResultRow
-                  key={s._id}
-                  title={s.pointOfContact ? `${s.orderId} — ${s.pointOfContact}` : s.orderId}
-                  subtitle={`${s.product?.name || "—"} · ${s.status}`}
-                  trailing={formatMoney(s.lineTotal)}
-                  onClick={() => go("sales", q.trim())}
-                />
-              ))}
+              {results.sales.map((s) => {
+                const titleText = s.pointOfContact
+                  ? `${s.orderId} — ${s.pointOfContact}`
+                  : s.orderId;
+
+                const billBadge = s.billNo ? `Bill #${s.billNo}` : null;
+                const subtitleText = [
+                  billBadge,
+                  s.product?.name || "—",
+                  s.status,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+
+                return (
+                  <ResultRow
+                    key={s._id}
+                    title={titleText}
+                    subtitle={subtitleText}
+                    trailing={formatMoney(s.lineTotal)}
+                    onClick={() => go("sales", s.billNo || q.trim())}
+                  />
+                );
+              })}
             </ResultGroup>
           )}
 
@@ -125,6 +160,23 @@ export default function SearchModal({ open, onClose, onNavigate }) {
                   onClick={() => go("expenses", q.trim())}
                 />
               ))}
+            </ResultGroup>
+          )}
+
+          {results.contacts.length > 0 && (
+            <ResultGroup label="Contacts & Suppliers" icon={Users}>
+              {results.contacts.map((c) => {
+                const contactDetails = [c.phone, c.email].filter(Boolean).join(" · ");
+
+                return (
+                  <ResultRow
+                    key={c._id}
+                    title={c.name}
+                    subtitle={contactDetails || "No contact info"}
+                    onClick={() => go("contacts", c.name)}
+                  />
+                );
+              })}
             </ResultGroup>
           )}
         </div>
@@ -159,7 +211,11 @@ function ResultRow({ title, subtitle, trailing, onClick }) {
         <p className="text-sm text-ink truncate">{title}</p>
         <p className="text-xs text-muted truncate">{subtitle}</p>
       </div>
-      <span className="font-mono text-xs tabular text-muted shrink-0 ml-3">{trailing}</span>
+      {trailing && (
+        <span className="font-mono text-xs tabular text-muted shrink-0 ml-3">
+          {trailing}
+        </span>
+      )}
     </button>
   );
 }

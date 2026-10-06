@@ -358,7 +358,7 @@ export default function Inventory({ initialSearch }) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-4 lg:px-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl sm:text-2xl text-ink">
@@ -372,7 +372,7 @@ export default function Inventory({ initialSearch }) {
         </div>
         <button
           onClick={() => (showForm ? cancelForm() : setShowForm(true))}
-          className="flex items-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
+          className="flex items-center justify-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors shrink-0"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           {showForm ? "Cancel" : "New product"}
@@ -383,7 +383,7 @@ export default function Inventory({ initialSearch }) {
         <form
           onSubmit={handleSubmit}
           onKeyDown={focusNextOnEnter}
-          className="bg-card border border-line rounded-lg p-5 space-y-3"
+          className="bg-card border border-line rounded-lg p-4 sm:p-5 space-y-3"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <input
@@ -581,26 +581,30 @@ export default function Inventory({ initialSearch }) {
 
           <button
             disabled={saving}
-            className="bg-moss text-white text-sm rounded-md py-2 px-6 hover:bg-moss-dark disabled:opacity-50"
+            className="w-full sm:w-auto bg-moss text-white text-sm rounded-md py-2 px-6 hover:bg-moss-dark disabled:opacity-50 font-medium transition-colors"
           >
             {saving ? "Saving…" : editingId ? "Update product" : "Save product"}
           </button>
         </form>
       )}
 
-      <DataTable
-        columns={columns}
-        rows={products}
-        searchValue={search}
-        onSearchChange={setSearch}
-        onRowDoubleClick={startEdit}
-        searchPlaceholder="Search name or SKU…"
-        filters={
-          <div className="flex flex-wrap items-center gap-3">
+      {/* ULTRA-COMPACT MOBILE LIST VIEW */}
+      <div className="md:hidden space-y-2.5">
+        {/* Filters & Search */}
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name or SKU..."
+            className="w-full px-3 py-1.5 text-xs bg-paper rounded-md border border-line"
+          />
+
+          <div className="flex items-center gap-2">
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              className="flex-1 px-2 py-1 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All types</option>
               {types.map((t) => (
@@ -609,22 +613,157 @@ export default function Inventory({ initialSearch }) {
                 </option>
               ))}
             </select>
-            <label className="flex items-center gap-2 text-sm text-muted">
+
+            <label className="flex items-center gap-1.5 text-xs text-muted shrink-0 bg-paper px-2 py-1 rounded-md border border-line cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={lowStockOnly}
                 onChange={(e) => setLowStockOnly(e.target.checked)}
-                className="accent-clay"
+                className="accent-clay h-3.5 w-3.5"
               />
-              Low stock only
+              Low stock
             </label>
           </div>
-        }
-        page={1}
-        pages={1}
-        onPageChange={() => {}}
-        emptyLabel="No products match your filters."
-      />
+        </div>
+
+        <div className="flex items-center justify-between text-[10px] text-muted px-0.5">
+          <span>{products.length} products</span>
+        </div>
+
+        {/* High-Density Row Cards with Always-Visible Color Variants */}
+        <div className="max-h-[calc(100vh-210px)] overflow-y-auto space-y-1.5 pr-0.5">
+          {products.map((r) => (
+            <div
+              key={r._id}
+              className={`bg-card border rounded-md px-2.5 py-2 shadow-2xs space-y-1 ${
+                r.isLowStock
+                  ? "border-clay/50 bg-clay-light/10"
+                  : "border-line"
+              }`}
+            >
+              {/* Primary Row: Name, SKU, Total Stock & Actions */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="font-semibold text-xs text-ink truncate">
+                      {r.name}
+                    </span>
+                    {r.sku && (
+                      <span className="text-[10px] font-mono text-muted shrink-0">
+                        ({r.sku})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-muted">{r.type}</span>
+                    <span className="text-[10px] font-mono text-muted">
+                      • {formatMoney(r.retailPrice)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stock Badge & Action Buttons */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
+                      r.isLowStock
+                        ? "bg-clay text-white"
+                        : "bg-moss-light text-moss-dark"
+                    }`}
+                  >
+                    {r.currentStock}
+                  </span>
+
+                  <div className="flex items-center gap-1 pl-1 border-l border-line/60 text-muted">
+                    <button
+                      onClick={() => openHistory(r)}
+                      className="p-1 hover:text-ink"
+                      title="History"
+                    >
+                      <History size={13} />
+                    </button>
+                    <button
+                      onClick={() => startEdit(r)}
+                      className="p-1 hover:text-moss-dark"
+                      title="Edit"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(r._id)}
+                      className="p-1 hover:text-clay"
+                      title="Delete"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Inline Colors & Quantities Breakdown (Always Visible) */}
+              {r.colors?.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1 border-t border-line/40">
+                  {r.colors.map((c) => (
+                    <span
+                      key={c.name}
+                      className="text-[9px] bg-paper border border-line px-1.5 py-0.5 rounded text-ink font-medium"
+                    >
+                      {c.name}: <span className="font-mono text-muted">{c.stock}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {products.length === 0 && (
+            <div className="py-10 text-center text-xs text-muted">
+              No products match your filters.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* DESKTOP TABLE VIEW */}
+      <div className="hidden md:block w-full overflow-x-auto min-w-full">
+        <DataTable
+          columns={columns}
+          rows={products}
+          searchValue={search}
+          onSearchChange={setSearch}
+          onRowDoubleClick={startEdit}
+          searchPlaceholder="Search name or SKU…"
+          filters={
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              >
+                <option value="">All types</option>
+                {types.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 text-sm text-muted">
+                <input
+                  type="checkbox"
+                  checked={lowStockOnly}
+                  onChange={(e) => setLowStockOnly(e.target.checked)}
+                  className="accent-clay"
+                />
+                Low stock only
+              </label>
+            </div>
+          }
+          page={1}
+          pages={1}
+          onPageChange={() => {}}
+          emptyLabel="No products match your filters."
+        />
+      </div>
 
       {historyFor && (
         <div

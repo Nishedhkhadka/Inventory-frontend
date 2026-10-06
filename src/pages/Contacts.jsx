@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useState, useMemo } from "react";
+import { Plus, Pencil, Trash2, X, Phone, Mail, MapPin, Building } from "lucide-react";
 import DataTable, { Badge } from "../components/DataTable";
 import {
   fetchContacts,
@@ -49,6 +49,26 @@ export default function Contacts() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Client-side filtering fallback to ensure search and category work smoothly
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((item) => {
+      const query = search.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        item.name?.toLowerCase().includes(query) ||
+        item.company?.toLowerCase().includes(query) ||
+        item.phone?.toLowerCase().includes(query) ||
+        item.email?.toLowerCase().includes(query) ||
+        item.address?.toLowerCase().includes(query) ||
+        item.notes?.toLowerCase().includes(query);
+
+      const matchesCategory =
+        !category || (item.category || "Supplier") === category;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [contacts, search, category]);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -129,6 +149,7 @@ export default function Contacts() {
       category: contact.category || "Supplier",
     });
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const columns = [
@@ -198,7 +219,7 @@ export default function Contacts() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-4 lg:px-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl sm:text-2xl text-ink">
@@ -211,7 +232,7 @@ export default function Contacts() {
         </div>
         <button
           onClick={() => (showForm ? resetForm() : setShowForm(true))}
-          className="flex items-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
+          className="flex items-center justify-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors shrink-0"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           {showForm ? "Cancel" : "New contact"}
@@ -221,7 +242,7 @@ export default function Contacts() {
       {showForm && (
         <form
           onSubmit={handleSubmit}
-          className="bg-card border border-line rounded-lg p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
+          className="bg-card border border-line rounded-lg p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
         >
           <input
             required
@@ -270,31 +291,34 @@ export default function Contacts() {
             placeholder="Notes"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line md:col-span-3 min-h-[90px]"
+            className="px-3 py-2 text-sm bg-paper rounded-md border border-line sm:col-span-2 md:col-span-3 min-h-[90px]"
           />
 
           <button
             type="submit"
             disabled={saving}
-            className="bg-moss text-white text-sm rounded-md py-2 hover:bg-moss-dark disabled:opacity-50 md:col-span-3"
+            className="bg-moss text-white text-sm rounded-md py-2 hover:bg-moss-dark disabled:opacity-50 sm:col-span-2 md:col-span-3 font-medium transition-colors"
           >
             {saving ? "Saving…" : editingId ? "Update contact" : "Save contact"}
           </button>
         </form>
       )}
 
-      <DataTable
-        columns={columns}
-        rows={contacts}
-        searchValue={search}
-        onSearchChange={setSearch}
-        onRowDoubleClick={startEdit}
-        searchPlaceholder="Search name, company, phone, email…"
-        filters={
+      {/* ULTRA-COMPACT MOBILE LIST VIEW */}
+      <div className="md:hidden space-y-2.5">
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, company, phone, email..."
+            className="w-full px-3 py-1.5 text-xs bg-paper rounded-md border border-line"
+          />
+
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+            className="w-full px-2 py-1 text-xs bg-paper rounded-md border border-line"
           >
             <option value="">All types</option>
             {CATEGORY_OPTIONS.map((option) => (
@@ -303,12 +327,144 @@ export default function Contacts() {
               </option>
             ))}
           </select>
-        }
-        page={1}
-        pages={1}
-        onPageChange={() => {}}
-        emptyLabel="No supplier or contact records yet."
-      />
+        </div>
+
+        <div className="flex items-center justify-between text-[10px] text-muted px-0.5">
+          <span>{filteredContacts.length} contacts</span>
+        </div>
+
+        <div className="max-h-[calc(100vh-210px)] overflow-y-auto space-y-1.5 pr-0.5">
+          {filteredContacts.map((row) => {
+            const contactId = row._id ?? row.id;
+
+            return (
+              <div
+                key={contactId}
+                className="bg-card border border-line rounded-md px-2.5 py-2 shadow-2xs space-y-1.5"
+              >
+                {/* Header Row: Name, Company, Category Badge & Actions */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-semibold text-xs text-ink truncate">
+                        {row.name}
+                      </span>
+                      {row.company && (
+                        <span className="text-[10px] text-muted truncate flex items-center gap-0.5">
+                          • <Building size={10} className="shrink-0" />
+                          {row.company}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1">
+                      <Badge
+                        tone={
+                          row.category === "Supplier"
+                            ? "moss"
+                            : row.category === "Customer"
+                              ? "sky"
+                              : row.category === "Both"
+                                ? "amber"
+                                : "muted"
+                        }
+                      >
+                        {row.category || "Supplier"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5 shrink-0 pt-0.5 text-muted">
+                    <button
+                      onClick={() => startEdit(row)}
+                      className="p-1 hover:text-moss-dark"
+                      title="Edit contact"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(row)}
+                      className="p-1 hover:text-clay"
+                      title="Delete contact"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Details Section: Phone, Email, Address */}
+                {(row.phone || row.email || row.address) && (
+                  <div className="space-y-0.5 pt-0.5 text-[10px] text-muted">
+                    {row.phone && (
+                      <div className="flex items-center gap-1 truncate">
+                        <Phone size={11} className="shrink-0 text-muted" />
+                        <span className="truncate">{row.phone}</span>
+                      </div>
+                    )}
+                    {row.email && (
+                      <div className="flex items-center gap-1 truncate">
+                        <Mail size={11} className="shrink-0 text-muted" />
+                        <span className="truncate">{row.email}</span>
+                      </div>
+                    )}
+                    {row.address && (
+                      <div className="flex items-center gap-1 truncate">
+                        <MapPin size={11} className="shrink-0 text-muted" />
+                        <span className="truncate">{row.address}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Notes Section */}
+                {row.notes && (
+                  <div className="pt-1 border-t border-line/40">
+                    <span className="text-[10px] text-muted truncate block">
+                      {row.notes}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {filteredContacts.length === 0 && (
+            <div className="py-10 text-center text-xs text-muted">
+              No supplier or contact records yet.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* DESKTOP TABLE VIEW */}
+      <div className="hidden md:block w-full overflow-x-auto min-w-full">
+        <DataTable
+          columns={columns}
+          rows={filteredContacts}
+          searchValue={search}
+          onSearchChange={setSearch}
+          onRowDoubleClick={startEdit}
+          searchPlaceholder="Search name, company, phone, email…"
+          filters={
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+            >
+              <option value="">All types</option>
+              {CATEGORY_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          }
+          page={1}
+          pages={1}
+          onPageChange={() => {}}
+          emptyLabel="No supplier or contact records yet."
+        />
+      </div>
     </div>
   );
 }

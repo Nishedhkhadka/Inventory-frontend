@@ -37,7 +37,7 @@ export default function DataTable({
   emptyLabel = "Nothing here yet.",
 }) {
   return (
-    <div className="w-full h-[72vh] border border-line rounded-lg overflow-hidden   ">
+    <div className="w-full h-[78vh] border border-line rounded-lg overflow-hidden   ">
       <div className="h-full overflow-auto">
         <table className="w-full table-fixed">
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-line">

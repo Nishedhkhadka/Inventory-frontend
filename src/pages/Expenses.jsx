@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Trash2, Pencil, X, FileDown } from "lucide-react";
+import { Plus, Trash2, Pencil, X, FileDown, Calendar, Tag, Truck } from "lucide-react";
 import {
   fetchPurchases,
   createPurchase,
@@ -212,6 +212,7 @@ export default function Expenses({ initialSearch }) {
       notes: purchase.notes || "",
     });
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const cancelForm = () => {
@@ -398,7 +399,7 @@ export default function Expenses({ initialSearch }) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-4 lg:px-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-xl sm:text-2xl text-ink">
@@ -409,7 +410,7 @@ export default function Expenses({ initialSearch }) {
             "Delivered" restocks automatically.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() =>
               downloadFile(
@@ -417,14 +418,14 @@ export default function Expenses({ initialSearch }) {
                 "zeno-expenses.xlsx",
               )
             }
-            className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-line text-muted hover:text-ink hover:border-moss transition-colors"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-sm px-4 py-2 rounded-md border border-line text-muted hover:text-ink hover:border-moss transition-colors"
           >
             <FileDown size={15} />{" "}
-            <span className="hidden sm:inline">Export</span>
+            <span className="inline sm:inline">Export</span>
           </button>
           <button
             onClick={() => (showForm ? cancelForm() : setShowForm(true))}
-            className="flex items-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
           >
             {showForm ? <X size={15} /> : <Plus size={15} />}
             {showForm ? "Cancel" : "New expense"}
@@ -436,10 +437,10 @@ export default function Expenses({ initialSearch }) {
         <form
           onSubmit={handleSubmit}
           onKeyDown={focusNextOnEnter}
-          className="bg-card border border-line rounded-lg p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3"
+          className="bg-card border border-line rounded-lg p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full"
         >
           {addingCategory ? (
-            <div className="flex gap-2">
+            <div className="flex gap-2 col-span-1 sm:col-span-2 md:col-span-1">
               <input
                 autoFocus
                 placeholder="New category name"
@@ -451,7 +452,7 @@ export default function Expenses({ initialSearch }) {
                     confirmNewCategory();
                   }
                 }}
-                className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line w-full"
               />
               <button
                 type="button"
@@ -469,11 +470,11 @@ export default function Expenses({ initialSearch }) {
               </button>
             </div>
           ) : (
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center col-span-1 sm:col-span-2 md:col-span-1">
               <select
                 value={form.category}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
               >
                 {categories.map((c) => (
                   <option key={c}>{c}</option>
@@ -484,7 +485,7 @@ export default function Expenses({ initialSearch }) {
                 <button
                   type="button"
                   onClick={handleCategoryDelete}
-                  className="text-muted hover:text-clay shrink-0"
+                  className="text-muted hover:text-clay shrink-0 p-1"
                   title="Delete this category"
                   aria-label="Delete this category"
                 >
@@ -499,7 +500,7 @@ export default function Expenses({ initialSearch }) {
               required
               value={form.product}
               onChange={(e) => handleProductChange(e.target.value)}
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2 md:col-span-1"
             >
               <option value="">Select product…</option>
               {products.map((p) => (
@@ -516,7 +517,7 @@ export default function Expenses({ initialSearch }) {
               onChange={(e) =>
                 setForm({ ...form, productName: e.target.value })
               }
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2 md:col-span-1"
             />
           )}
 
@@ -524,7 +525,7 @@ export default function Expenses({ initialSearch }) {
             <select
               value={form.color}
               onChange={(e) => setForm({ ...form, color: e.target.value })}
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2 md:col-span-1"
             >
               {selectedProduct.colors.map((c) => (
                 <option key={c.name} value={c.name}>
@@ -534,27 +535,28 @@ export default function Expenses({ initialSearch }) {
             </select>
           )}
 
-          <>
+          <div className="col-span-1 sm:col-span-2 md:col-span-1">
             <input
               list="supplier-options"
               placeholder="Supplier"
               value={form.supplier}
               onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
             <datalist id="supplier-options">
               {supplierOptions.map((name) => (
                 <option key={name} value={name} />
               ))}
             </datalist>
-          </>
+          </div>
+
           <input
             type="number"
             min="0"
             placeholder="Quantity"
             value={form.quantity}
             onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-1"
           />
           <input
             required
@@ -564,7 +566,7 @@ export default function Expenses({ initialSearch }) {
             placeholder="Total landed cost"
             value={form.cost}
             onChange={(e) => setForm({ ...form, cost: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-1"
           />
 
           {hasColorVariants &&
@@ -572,13 +574,13 @@ export default function Expenses({ initialSearch }) {
             extraColorLines.map((line, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 col-span-1 sm:col-span-2 md:col-span-4"
+                className="flex flex-wrap sm:flex-nowrap items-center gap-2 col-span-1 sm:col-span-2 md:col-span-4 bg-paper/50 p-2 sm:p-0 rounded-md border sm:border-0 border-line"
               >
-                <span className="text-xs text-muted w-16 shrink-0">Also…</span>
+                <span className="text-xs text-muted w-full sm:w-16 shrink-0 font-medium">Also…</span>
                 <select
                   value={line.color}
                   onChange={(e) => updateColorLine(i, "color", e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                  className="flex-1 min-w-[140px] px-3 py-2 text-sm bg-paper rounded-md border border-line"
                 >
                   {selectedProduct.colors.map((c) => (
                     <option key={c.name} value={c.name}>
@@ -594,7 +596,7 @@ export default function Expenses({ initialSearch }) {
                   onChange={(e) =>
                     updateColorLine(i, "quantity", e.target.value)
                   }
-                  className="w-24 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                  className="w-20 sm:w-24 px-3 py-2 text-sm bg-paper rounded-md border border-line"
                 />
                 <input
                   type="number"
@@ -603,12 +605,12 @@ export default function Expenses({ initialSearch }) {
                   placeholder="Cost"
                   value={line.cost}
                   onChange={(e) => updateColorLine(i, "cost", e.target.value)}
-                  className="w-28 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                  className="w-24 sm:w-28 px-3 py-2 text-sm bg-paper rounded-md border border-line"
                 />
                 <button
                   type="button"
                   onClick={() => removeColorLine(i)}
-                  className="text-muted hover:text-clay shrink-0"
+                  className="text-muted hover:text-clay shrink-0 p-1 ml-auto sm:ml-0"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -621,7 +623,7 @@ export default function Expenses({ initialSearch }) {
               <button
                 type="button"
                 onClick={addColorLine}
-                className="text-xs text-moss-dark hover:underline text-left col-span-1 sm:col-span-2 md:col-span-4 -mt-1"
+                className="text-xs text-moss-dark hover:underline text-left col-span-1 sm:col-span-2 md:col-span-4 -mt-1 py-1"
               >
                 + Add another colour to this purchase
               </button>
@@ -630,53 +632,55 @@ export default function Expenses({ initialSearch }) {
           <select
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-1"
           >
             {STATUSES.map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
-          <label className="text-xs text-muted flex flex-col gap-1">
+          <label className="text-xs text-muted flex flex-col gap-1 col-span-1 sm:col-span-1">
             Order date
             <input
               type="date"
               value={form.orderDate}
               onChange={(e) => setForm({ ...form, orderDate: e.target.value })}
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
           </label>
-          <label className="text-xs text-muted flex flex-col gap-1">
+          <label className="text-xs text-muted flex flex-col gap-1 col-span-1 sm:col-span-1">
             Expected date
             <input
               type="date"
               value={form.arriveBy}
               onChange={(e) => setForm({ ...form, arriveBy: e.target.value })}
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+              className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
           </label>
           <input
             placeholder="Weight / CBM"
             value={form.weightCbm}
             onChange={(e) => setForm({ ...form, weightCbm: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-1"
           />
-          <input
-            list="expense-tag-options"
-            placeholder="Tags (comma separated)"
-            value={form.tags}
-            onChange={(e) => setForm({ ...form, tags: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2"
-          />
-          <datalist id="expense-tag-options">
-            {allTags.map((t) => (
-              <option key={t} value={t} />
-            ))}
-          </datalist>
+          <div className="col-span-1 sm:col-span-2">
+            <input
+              list="expense-tag-options"
+              placeholder="Tags (comma separated)"
+              value={form.tags}
+              onChange={(e) => setForm({ ...form, tags: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            />
+            <datalist id="expense-tag-options">
+              {allTags.map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
+          </div>
           <input
             placeholder="Notes"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            className="px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2"
+            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2"
           />
 
           {isInventory && form.status === "Delivered" && (
@@ -693,32 +697,35 @@ export default function Expenses({ initialSearch }) {
 
           <button
             disabled={saving}
-            className="bg-moss text-white text-sm rounded-md py-2 hover:bg-moss-dark disabled:opacity-50"
+            className="w-full bg-moss text-white text-sm rounded-md py-2.5 sm:py-2 hover:bg-moss-dark disabled:opacity-50 col-span-1 sm:col-span-2 md:col-span-4 mt-1 font-medium transition-colors"
           >
             {saving ? "Saving…" : editingId ? "Update expense" : "Save expense"}
           </button>
         </form>
       )}
 
-      <DataTable
-        columns={columns}
-        rows={purchases}
-        searchValue={search}
-        onSearchChange={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
-        onRowDoubleClick={startEdit}
-        searchPlaceholder="Search item, supplier, or tag…"
-        filters={
-          <div className="flex flex-wrap items-center gap-2">
+      {/* MOBILE CARD VIEW */}
+      <div className="md:hidden space-y-3">
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search item, supplier, or tag..."
+            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+          />
+
+          <div className="grid grid-cols-3 gap-2">
             <select
               value={category}
               onChange={(e) => {
                 setCategory(e.target.value);
                 setPage(1);
               }}
-              className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All categories</option>
               {categories.map((c) => (
@@ -727,13 +734,14 @@ export default function Expenses({ initialSearch }) {
                 </option>
               ))}
             </select>
+
             <select
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value);
                 setPage(1);
               }}
-              className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All statuses</option>
               {STATUSES.map((s) => (
@@ -742,13 +750,14 @@ export default function Expenses({ initialSearch }) {
                 </option>
               ))}
             </select>
+
             <select
               value={tag}
               onChange={(e) => {
                 setTag(e.target.value);
                 setPage(1);
               }}
-              className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All tags</option>
               {allTags.map((t) => (
@@ -758,13 +767,215 @@ export default function Expenses({ initialSearch }) {
               ))}
             </select>
           </div>
-        }
-        onRowDoubleClick={startEdit}
-        page={page}
-        pages={pages}
-        onPageChange={setPage}
-        emptyLabel="No expenses match your filters."
-      />
+        </div>
+
+        <div className="flex items-center justify-between text-[10px] text-muted py-0.5">
+          <span>{purchases.length} records</span>
+        </div>
+
+        <div className="max-h-[calc(100vh-250px)] overflow-y-auto space-y-2 pr-0.5">
+          {purchases.map((r) => (
+            <div
+              key={r._id}
+              className="bg-card border border-line rounded-md p-3 shadow-sm space-y-2"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-sm text-ink truncate">
+                      {r.productName}
+                    </span>
+                    {r.color && (
+                      <span className="text-xs text-muted">· {r.color}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <Badge tone="muted">{r.category}</Badge>
+                    {r.supplier && (
+                      <span className="text-xs text-muted truncate">
+                        {r.supplier}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="font-semibold text-sm font-mono">
+                    {formatMoney(r.cost)}
+                  </div>
+                  {r.quantity != null && (
+                    <div className="text-[10px] text-muted">
+                      Qty: {r.quantity}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {r.tags?.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                  <Tag className="w-3 h-3 text-muted shrink-0" />
+                  {r.tags.map((t) => (
+                    <Badge key={t} tone="muted">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {r.notes && (
+                <div className="rounded-md bg-amber-light/40 border border-amber/20 px-2 py-1">
+                  <div className="text-[8px] font-semibold uppercase tracking-wide text-amber">
+                    Notes
+                  </div>
+                  <div className="text-[10px] leading-4 text-ink truncate">
+                    {r.notes}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-line/50">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={r.status}
+                    onChange={(e) => handleStatusChange(r, e.target.value)}
+                    className={`text-[10px] rounded px-2 py-0.5 border-0 font-medium cursor-pointer ${
+                      r.status === "Delivered"
+                        ? "bg-moss-light text-moss-dark"
+                        : "bg-sky-light text-sky"
+                    }`}
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="flex items-center gap-1 text-[10px] text-muted">
+                    <Calendar className="w-3 h-3 text-muted shrink-0" />
+                    <span>{formatDate(r.orderDate)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => startEdit(r)}
+                    className="text-muted hover:text-moss-dark p-0.5"
+                    title="Edit expense"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(r._id)}
+                    className="text-muted hover:text-clay p-0.5"
+                    title="Delete expense"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {purchases.length === 0 && (
+            <div className="py-10 text-center text-sm text-muted">
+              No expenses match your filters.
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
+          >
+            Previous
+          </button>
+
+          <span className="text-[10px] text-muted">
+            Page {page} of {pages || 1}
+          </span>
+
+          <button
+            type="button"
+            disabled={page >= pages}
+            onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            className="px-3 py-1.5 text-xs rounded-md border border-line bg-paper disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
+      {/* DESKTOP TABLE VIEW */}
+      <div className="hidden md:block w-full overflow-x-auto min-w-full">
+        <DataTable
+          columns={columns}
+          rows={purchases}
+          searchValue={search}
+          onSearchChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          onRowDoubleClick={startEdit}
+          searchPlaceholder="Search item, supplier, or tag…"
+          filters={
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  setPage(1);
+                }}
+                className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              >
+                <option value="">All categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              >
+                <option value="">All statuses</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={tag}
+                onChange={(e) => {
+                  setTag(e.target.value);
+                  setPage(1);
+                }}
+                className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              >
+                <option value="">All tags</option>
+                {allTags.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          }
+          page={page}
+          pages={pages}
+          onPageChange={setPage}
+          emptyLabel="No expenses match your filters."
+        />
+      </div>
     </div>
   );
 }
