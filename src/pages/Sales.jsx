@@ -1041,30 +1041,47 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 </body>
 </html>`;
 
-    const invoiceBlob = new Blob([printableHtml], { type: "text/html" });
-    const invoiceUrl = URL.createObjectURL(invoiceBlob);
+    // Open a real print window synchronously from the button click.
+    // Using a Blob URL here can open the invoice in a separate tab/window
+    // without giving us a reliable window reference for print().
     const invoiceWindow = window.open(
-      invoiceUrl,
+      "",
       "_blank",
-      "width=900,height=1000,noopener,noreferrer",
+      "width=900,height=1000",
     );
 
     if (!invoiceWindow) {
-      URL.revokeObjectURL(invoiceUrl);
       alert("Please allow pop-ups to print the invoice.");
       return;
     }
 
-    setTimeout(() => {
-      try {
+    try {
+      invoiceWindow.document.open();
+      invoiceWindow.document.write(printableHtml);
+      invoiceWindow.document.close();
+
+      const printWhenReady = () => {
         invoiceWindow.focus();
         invoiceWindow.print();
-      } catch {
-        alert("Print preview was blocked. Please retry with pop-ups enabled.");
-      } finally {
-        setTimeout(() => URL.revokeObjectURL(invoiceUrl), 1000);
+      };
+
+      // Wait until the generated invoice document (including its styles and
+      // any invoice logo) has finished loading before opening print preview.
+      if (invoiceWindow.document.readyState === "complete") {
+        setTimeout(printWhenReady, 100);
+      } else {
+        invoiceWindow.onload = () => {
+          setTimeout(printWhenReady, 100);
+        };
       }
-    }, 250);
+    } catch {
+      try {
+        invoiceWindow.close();
+      } catch {
+        // Ignore close errors if the browser prevents closing the window.
+      }
+      alert("Print preview was blocked. Please retry with pop-ups enabled.");
+    }
   };
 
   // ---------------------------------------------------------
@@ -1217,35 +1234,41 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         deliveryPartner: orderForm.deliveryPartner || undefined,
       };
 
-      const discount = Number(orderDiscount) || 0;
+      const discount = Math.max(0, Number(orderDiscount) || 0);
 
-      const target = Math.max(0, subtotal - discount);
+      /*
+       * lineTotal is the current product amount for each line.  An order
+       * discount must be applied to the combined order total, regardless of
+       * whether a line was previously marked as priceTouched (which is true
+       * when an existing order is opened for editing).
+       *
+       * This also fixes the previous condition where every populated
+       * lineTotal was treated as an explicit/manual value, preventing the
+       * order discount from ever reaching the saved line totals.
+       */
+      const currentLineTotals = lines.map((l) =>
+        Math.max(0, Number(l.lineTotal) || 0),
+      );
+
+      const currentSubtotal = round2(
+        currentLineTotals.reduce((sum, value) => sum + value, 0),
+      );
+
+      const target = Math.max(0, round2(currentSubtotal - discount));
 
       let allocated = 0;
 
-      const finalLineTotals = lines.map((l, idx) => {
-        const explicitValue =
-          l.priceTouched ||
-          (l.lineTotal !== "" &&
-            l.lineTotal !== null &&
-            l.lineTotal !== undefined)
-            ? Number(l.lineTotal || 0)
-            : null;
-
-        if (explicitValue !== null) {
-          allocated += explicitValue;
-
-          return explicitValue;
-        }
-
-        if (idx === lines.length - 1) {
+      const finalLineTotals = currentLineTotals.map((lineValue, idx) => {
+        if (idx === currentLineTotals.length - 1) {
           return round2(Math.max(0, target - allocated));
         }
 
         const share =
-          subtotal > 0 ? ((Number(l.lineTotal) || 0) / subtotal) * target : 0;
+          currentSubtotal > 0
+            ? (lineValue / currentSubtotal) * target
+            : 0;
 
-        const rounded = round2(share);
+        const rounded = round2(Math.max(0, share));
 
         allocated += rounded;
 
@@ -1266,6 +1289,32 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         );
 
         await Promise.all(removedLines.map((l) => deleteSale(l._id)));
+
+        /*
+         * orderId has a unique MongoDB index.  When editing a multi-line
+         * order, changing/reordering line positions can cause two existing
+         * documents to temporarily want each other's orderId.  Updating
+         * them all in parallel can therefore hit E11000.
+         *
+         * Move every existing line to a temporary unique orderId first,
+         * then assign the final orderIds.  This changes only the orderId
+         * transition and leaves all other update behavior unchanged.
+         */
+        const existingLines = lines.filter((line) => line._id);
+
+        if (existingLines.length) {
+          const editToken = `${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`;
+
+          await Promise.all(
+            existingLines.map((line, index) =>
+              updateSale(line._id, {
+                orderId: `__editing__${editToken}-${index}`,
+              }),
+            ),
+          );
+        }
 
         const linePromises = lines.map((line, i) => {
           const lineOrderId = i === 0 ? baseId : `${baseId}-line-${i + 1}`;
@@ -1724,11 +1773,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             Sales orders
           </h1>
 
-          <p className="text-sm text-muted mt-1">
-            Stock is reserved as soon as an order is placed and stays deducted
-            through Packed, Delivered, and Damaged — only marking an order
-            Returned puts it back.
-          </p>
+         
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
