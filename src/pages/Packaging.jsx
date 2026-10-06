@@ -345,8 +345,8 @@ export default function Packaging({ onNavigate }) {
 
               <dl className="text-xs space-y-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <dt className="text-muted shrink-0">Customer</dt>
-                  <dd className="text-right truncate">
+              
+                  <dd className="text-ink text-right truncate font-semibold">
                     {group.customer ? (
                       <button
                         type="button"

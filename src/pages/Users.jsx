@@ -22,6 +22,7 @@ export default function Users() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false); // State for saved state
   const [resettingId, setResettingId] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [profile, setProfile] = useState(DEFAULT_BUSINESS_PROFILE);
@@ -33,6 +34,8 @@ export default function Users() {
   const saveProfile = (event) => {
     event.preventDefault();
     saveBusinessProfile(profile);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000); // Revert back after 2 seconds
   };
 
   useEffect(() => {
@@ -209,9 +212,9 @@ export default function Users() {
         />
         <button
           type="submit"
-          className="inline-flex items-center gap-1.5 bg-moss text-white text-sm rounded-md px-3 py-2"
+          className="inline-flex items-center gap-1.5 bg-moss text-white text-sm rounded-md px-3 py-2 transition-colors"
         >
-          <Check size={14} /> Save bill details
+          <Check size={14} /> {saved ? "Saved" : "Save bill details"}
         </button>
       </form>
 
