@@ -139,7 +139,7 @@ export default function SearchModal({ open, onClose, onNavigate }) {
                     key={s._id}
                     title={titleText}
                     subtitle={subtitleText}
-                    trailing={formatMoney(s.lineTotal)}
+                    trailing={formatMoney(s.grandTotal ?? s.lineTotal)}
                     onClick={() => go("sales", s.billNo || q.trim())}
                   />
                 );
