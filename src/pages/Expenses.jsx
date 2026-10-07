@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Trash2, Pencil, X, FileDown, Calendar, Tag, Truck } from "lucide-react";
+import { Plus, Trash2, Pencil, X, FileDown, Calendar, Tag } from "lucide-react";
 import {
   fetchPurchases,
   createPurchase,
@@ -704,8 +704,8 @@ export default function Expenses({ initialSearch }) {
         </form>
       )}
 
-      {/* MOBILE CARD VIEW */}
-      <div className="md:hidden space-y-3">
+      {/* ULTRA-COMPACT MOBILE LIST VIEW */}
+      <div className="md:hidden space-y-2.5">
         <div className="space-y-2">
           <input
             type="text"
@@ -715,7 +715,7 @@ export default function Expenses({ initialSearch }) {
               setPage(1);
             }}
             placeholder="Search item, supplier, or tag..."
-            className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            className="w-full px-3 py-1.5 text-xs bg-paper rounded-md border border-line"
           />
 
           <div className="grid grid-cols-3 gap-2">
@@ -725,7 +725,7 @@ export default function Expenses({ initialSearch }) {
                 setCategory(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+              className="w-full px-2 py-1 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All categories</option>
               {categories.map((c) => (
@@ -741,7 +741,7 @@ export default function Expenses({ initialSearch }) {
                 setStatus(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+              className="w-full px-2 py-1 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All statuses</option>
               {STATUSES.map((s) => (
@@ -757,7 +757,7 @@ export default function Expenses({ initialSearch }) {
                 setTag(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
+              className="w-full px-2 py-1 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All tags</option>
               {allTags.map((t) => (
@@ -769,48 +769,52 @@ export default function Expenses({ initialSearch }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-muted py-0.5">
+        <div className="flex items-center justify-between text-[10px] text-muted px-0.5">
           <span>{purchases.length} records</span>
         </div>
 
-        <div className="max-h-[calc(100vh-250px)] overflow-y-auto space-y-2 pr-0.5">
+        <div className="max-h-[calc(100vh-210px)] overflow-y-auto space-y-1.5 pr-0.5">
           {purchases.map((r) => (
             <div
               key={r._id}
-              className="bg-card border border-line rounded-md p-3 shadow-sm space-y-2"
+              className="bg-card border border-line rounded-md px-2.5 py-2 shadow-2xs space-y-1.5"
             >
+              {/* Primary Header Row: Item Name, Color, Category Badge, Cost & Qty */}
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold text-sm text-ink truncate">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="font-semibold text-xs text-ink truncate">
                       {r.productName}
                     </span>
                     {r.color && (
-                      <span className="text-xs text-muted">· {r.color}</span>
+                      <span className="text-[10px] text-muted shrink-0">
+                        · {r.color}
+                      </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <Badge tone="muted">{r.category}</Badge>
                     {r.supplier && (
-                      <span className="text-xs text-muted truncate">
-                        {r.supplier}
+                      <span className="text-[10px] text-muted truncate">
+                        • {r.supplier}
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <div className="font-semibold text-sm font-mono">
+                  <div className="font-semibold text-xs font-mono text-ink">
                     {formatMoney(r.cost)}
                   </div>
                   {r.quantity != null && (
-                    <div className="text-[10px] text-muted">
+                    <div className="text-[10px] text-muted font-mono">
                       Qty: {r.quantity}
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Tags Section */}
               {r.tags?.length > 0 && (
                 <div className="flex items-center gap-1 flex-wrap pt-0.5">
                   <Tag className="w-3 h-3 text-muted shrink-0" />
@@ -822,23 +826,22 @@ export default function Expenses({ initialSearch }) {
                 </div>
               )}
 
+              {/* Notes Section */}
               {r.notes && (
-                <div className="rounded-md bg-amber-light/40 border border-amber/20 px-2 py-1">
-                  <div className="text-[8px] font-semibold uppercase tracking-wide text-amber">
-                    Notes
-                  </div>
-                  <div className="text-[10px] leading-4 text-ink truncate">
-                    {r.notes}
-                  </div>
+                <div className="pt-0.5">
+                  <span className="text-[10px] text-muted truncate block">
+                    Note: {r.notes}
+                  </span>
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-line/50">
+              {/* Status Select, Date & Actions */}
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-line/40">
                 <div className="flex items-center gap-2">
                   <select
                     value={r.status}
                     onChange={(e) => handleStatusChange(r, e.target.value)}
-                    className={`text-[10px] rounded px-2 py-0.5 border-0 font-medium cursor-pointer ${
+                    className={`text-[10px] rounded px-1.5 py-0.5 border-0 font-medium cursor-pointer ${
                       r.status === "Delivered"
                         ? "bg-moss-light text-moss-dark"
                         : "bg-sky-light text-sky"
@@ -857,20 +860,20 @@ export default function Expenses({ initialSearch }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0 text-muted">
                   <button
                     onClick={() => startEdit(r)}
-                    className="text-muted hover:text-moss-dark p-0.5"
+                    className="p-1 hover:text-moss-dark"
                     title="Edit expense"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={13} />
                   </button>
                   <button
                     onClick={() => handleDelete(r._id)}
-                    className="text-muted hover:text-clay p-0.5"
+                    className="p-1 hover:text-clay"
                     title="Delete expense"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
@@ -878,7 +881,7 @@ export default function Expenses({ initialSearch }) {
           ))}
 
           {purchases.length === 0 && (
-            <div className="py-10 text-center text-sm text-muted">
+            <div className="py-10 text-center text-xs text-muted">
               No expenses match your filters.
             </div>
           )}
