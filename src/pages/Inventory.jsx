@@ -7,6 +7,7 @@ import {
   X,
   History,
   Loader2,
+  Package,
 } from "lucide-react";
 import {
   fetchProducts,
@@ -61,7 +62,7 @@ export default function Inventory({ initialSearch }) {
   const [stockError, setStockError] = useState(null);
 
   // Stock-change history modal
-  const [historyFor, setHistoryFor] = useState(null); // product being viewed, or null
+  const [historyFor, setHistoryFor] = useState(null);
   const [historyLogs, setHistoryLogs] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -186,6 +187,7 @@ export default function Inventory({ initialSearch }) {
       stockChangeComment: "",
     });
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const cancelForm = () => {
@@ -588,8 +590,8 @@ export default function Inventory({ initialSearch }) {
         </form>
       )}
 
-      {/* ULTRA-COMPACT MOBILE LIST VIEW */}
-      <div className="md:hidden space-y-2.5">
+      {/* CLEAN & PLEASANT MOBILE CARD VIEW */}
+      <div className="md:hidden space-y-3">
         {/* Filters & Search */}
         <div className="space-y-2">
           <input
@@ -597,14 +599,14 @@ export default function Inventory({ initialSearch }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name or SKU..."
-            className="w-full px-3 py-1.5 text-xs bg-paper rounded-md border border-line"
+            className="w-full px-3 py-2 text-xs bg-paper rounded-md border border-line"
           />
 
           <div className="flex items-center gap-2">
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="flex-1 px-2 py-1 text-xs bg-paper rounded-md border border-line"
+              className="flex-1 px-2.5 py-1.5 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All types</option>
               {types.map((t) => (
@@ -614,7 +616,7 @@ export default function Inventory({ initialSearch }) {
               ))}
             </select>
 
-            <label className="flex items-center gap-1.5 text-xs text-muted shrink-0 bg-paper px-2 py-1 rounded-md border border-line cursor-pointer select-none">
+            <label className="flex items-center gap-1.5 text-xs text-muted shrink-0 bg-paper px-2.5 py-1.5 rounded-md border border-line cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={lowStockOnly}
@@ -626,98 +628,116 @@ export default function Inventory({ initialSearch }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-muted px-0.5">
-          <span>{products.length} products</span>
+        <div className="flex items-center justify-between text-[11px] text-muted px-0.5">
+          <span>Showing {products.length} products</span>
         </div>
 
-        {/* High-Density Row Cards with Always-Visible Color Variants */}
-        <div className="max-h-[calc(100vh-210px)] overflow-y-auto space-y-1.5 pr-0.5">
+        {/* Clean Modern Cards */}
+        <div className="space-y-3">
           {products.map((r) => (
             <div
               key={r._id}
-              className={`bg-card border rounded-md px-2.5 py-2 shadow-2xs space-y-1 ${
+              className={`bg-card border rounded-lg p-3.5 shadow-sm space-y-3 transition-colors ${
                 r.isLowStock
-                  ? "border-clay/50 bg-clay-light/10"
+                  ? "border-clay/40 bg-clay-light/5"
                   : "border-line"
               }`}
             >
-              {/* Primary Row: Name, SKU, Total Stock & Actions */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="font-semibold text-xs text-ink truncate">
+              {/* Header: Name, SKU, Type & Total Stock Badge */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="font-medium text-sm text-ink leading-tight">
                       {r.name}
-                    </span>
+                    </h3>
                     {r.sku && (
-                      <span className="text-[10px] font-mono text-muted shrink-0">
-                        ({r.sku})
+                      <span className="text-[10px] text-muted font-mono">
+                       ({r.sku}) 
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-muted">{r.type}</span>
-                    <span className="text-[10px] font-mono text-muted">
-                      • {formatMoney(r.retailPrice)}
+                  <div className="flex items-center gap-2">
+                    <Badge tone="muted">{r.type}</Badge>
+                    <span className="text-xs font-mono text-ink font-medium">
+                      {formatMoney(r.retailPrice)}
                     </span>
                   </div>
                 </div>
 
-                {/* Stock Badge & Action Buttons */}
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Stock Badge */}
+                <div className="text-right shrink-0">
                   <span
-                    className={`font-mono text-xs font-semibold px-2 py-0.5 rounded ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-medium ${
                       r.isLowStock
                         ? "bg-clay text-white"
                         : "bg-moss-light text-moss-dark"
                     }`}
                   >
-                    {r.currentStock}
+                    {r.isLowStock && <AlertTriangle size={12} />}
+                    {r.currentStock} in stock
                   </span>
-
-                  <div className="flex items-center gap-1 pl-1 border-l border-line/60 text-muted">
-                    <button
-                      onClick={() => openHistory(r)}
-                      className="p-1 hover:text-ink"
-                      title="History"
-                    >
-                      <History size={13} />
-                    </button>
-                    <button
-                      onClick={() => startEdit(r)}
-                      className="p-1 hover:text-moss-dark"
-                      title="Edit"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(r._id)}
-                      className="p-1 hover:text-clay"
-                      title="Delete"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
                 </div>
               </div>
 
-              {/* Inline Colors & Quantities Breakdown (Always Visible) */}
+              {/* Color & Quantity Breakdown */}
               {r.colors?.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1 border-t border-line/40">
-                  {r.colors.map((c) => (
-                    <span
-                      key={c.name}
-                      className="text-[9px] bg-paper border border-line px-1.5 py-0.5 rounded text-ink font-medium"
-                    >
-                      {c.name}: <span className="font-mono text-muted">{c.stock}</span>
-                    </span>
-                  ))}
+                <div className="rounded-md   space-y-1.5">
+                  <span className="text-[10px] uppercase tracking-wider text-muted font-medium block">
+                   
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.colors.map((c) => (
+                      <div
+                        key={c.name}
+                        className="flex items-center gap-1 bg-card border border-line px-2 py-1 rounded text-xs text-ink"
+                      >
+                        <span className="font-medium">{c.name}:</span>
+                        <span className="font-mono text-muted">{c.stock}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* Card Action Footer */}
+              <div className="flex items-center justify-between pt-2 border-t border-line/60 text-xs text-muted">
+                <span className="text-[11px] font-mono">
+                  Value:
+                  <span className="margin-left-1  top-0.5 relative text-ink ">  
+
+                  {formatMoney(r.currentStock * r.retailPrice)}
+                  </span>
+                </span>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => openHistory(r)}
+                    className="flex items-center gap-1 hover:text-ink transition-colors"
+                  >
+                    <History size={13} />
+                   
+                  </button>
+                  <button
+                    onClick={() => startEdit(r)}
+                    className="flex items-center gap-1 hover:text-moss-dark transition-colors"
+                  >
+                    <Pencil size={13} />
+                    
+                  </button>
+                  <button
+                    onClick={() => handleDelete(r._id)}
+                    className="flex items-center gap-1 hover:text-clay transition-colors"
+                  >
+                    <Trash2 size={13} />
+                   
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
 
           {products.length === 0 && (
-            <div className="py-10 text-center text-xs text-muted">
+            <div className="py-12 text-center text-sm text-muted bg-card rounded-lg border border-line">
               No products match your filters.
             </div>
           )}
