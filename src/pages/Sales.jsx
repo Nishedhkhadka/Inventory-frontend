@@ -8,6 +8,7 @@ import {
   salesExportUrl,
 } from "../api/sales";
 import { fetchProducts } from "../api/products";
+import { fetchLocations } from "../api/locations";
 import DataTable from "../components/DataTable";
 import { focusNextOnEnter } from "../utils/formNav";
 import { formatDate, todayStr } from "../utils/dateFmt";
@@ -73,6 +74,7 @@ const makeEmptyOrderForm = () => ({
   pointOfContact: "",
   customerPhone: "",
   orderDate: todayStr(),
+  location: "",
   notes: "",
   deliveryPartner: "",
   deliveryFeeCharged: "",
@@ -82,6 +84,8 @@ const makeEmptyOrderForm = () => ({
 export default function Sales({ initialSearch, openFormOnLoad }) {
   const [sales, setSales] = useState([]);
   const [products, setProducts] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [defaultLocation, setDefaultLocation] = useState(null);
 
   const [search, setSearch] = useState(initialSearch || "");
   const [status, setStatus] = useState("");
@@ -118,7 +122,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
   // ---------------------------------------------------------
-  // LOAD SALES
+  // LOAD SALES & LOCATIONS
   // ---------------------------------------------------------
 
   const load = useCallback(() => {
@@ -131,20 +135,12 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       to: toDate,
     }).then((res) => {
       const sorted = [...(res.data || [])].sort((a, b) => {
-        // Newest order date first
         const dateA = new Date(a.orderDate || 0).getTime();
-
         const dateB = new Date(b.orderDate || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
 
-        if (dateB !== dateA) {
-          return dateB - dateA;
-        }
-
-        // Same date → newest created order first
         const createdA = new Date(a.createdAt || 0).getTime();
-
         const createdB = new Date(b.createdAt || 0).getTime();
-
         return createdB - createdA;
       });
 
@@ -154,10 +150,19 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   }, [search, status, page, fromDate, toDate]);
 
   useEffect(() => {
+    fetchLocations().then((locs) => {
+      setLocations(locs);
+      const def = locs.find((l) => l.isDefault) || locs[0];
+      setDefaultLocation(def);
+      if (def) {
+        setOrderForm((prev) => ({ ...prev, location: prev.location || def._id }));
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     const stored = localStorage.getItem("zeno-delivery-partners");
-
     const parsed = stored ? JSON.parse(stored) : [];
-
     const merged = [
       ...new Set([
         ...DELIVERY_PARTNER_DEFAULTS,
@@ -165,7 +170,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         ...sales.map((s) => s.deliveryPartner).filter(Boolean),
       ]),
     ];
-
     setDeliveryPartners(merged);
   }, [sales]);
 
@@ -175,10 +179,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   useEffect(() => {
     if (openFormOnLoad) {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [openFormOnLoad]);
 
@@ -187,29 +188,30 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   }, []);
 
   // ---------------------------------------------------------
-  // PRODUCT MAP
+  // PRODUCT MAP & LOCATION STOCK HELPER
   // ---------------------------------------------------------
 
   const productById = useMemo(() => {
     const map = new Map();
-
     products.forEach((p) => {
       map.set(p._id, p);
     });
-
     return map;
   }, [products]);
 
-  const stockFor = (product, colorName) => {
+  const stockFor = (product, colorName, locationId) => {
     if (!product) return null;
+    const locId = locationId || orderForm.location || defaultLocation?._id;
+    if (!locId) return product.currentStock;
 
-    if (!product.colors?.length) {
-      return product.currentStock;
-    }
+    const locStocks = product.locationStocks || [];
+    const match = locStocks.find(
+      (ls) =>
+        ls.location.toString() === locId.toString() &&
+        (ls.color || "") === (colorName || "")
+    );
 
-    const c = product.colors.find((c) => c.name === colorName);
-
-    return c ? c.stock : null;
+    return match ? match.stock : 0;
   };
 
   // ---------------------------------------------------------
@@ -221,11 +223,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     for (const sale of sales) {
       const key = baseOrderId(sale.orderId) || sale._id;
-
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-
+      if (!map.has(key)) map.set(key, []);
       map.get(key).push(sale);
     }
 
@@ -250,25 +248,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           primary,
           deliveryLine,
           lines: groupLines,
-
           lineTotal: groupLines.reduce((sum, l) => sum + (l.lineTotal || 0), 0),
-
           quantity: groupLines.reduce((sum, l) => sum + (l.quantity || 0), 0),
         };
       })
       .sort((a, b) => {
         const dateA = new Date(a.primary.orderDate || 0).getTime();
-
         const dateB = new Date(b.primary.orderDate || 0).getTime();
-
-        if (dateB !== dateA) {
-          return dateB - dateA;
-        }
+        if (dateB !== dateA) return dateB - dateA;
 
         const createdA = new Date(a.primary.createdAt || 0).getTime();
-
         const createdB = new Date(b.primary.createdAt || 0).getTime();
-
         return createdB - createdA;
       });
   }, [sales]);
@@ -280,10 +270,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   useEffect(() => {
     setSelectedOrders((prev) => {
       const visibleKeys = new Set(groupedSales.map((group) => group.key));
-
-      const next = new Set([...prev].filter((key) => visibleKeys.has(key)));
-
-      return next;
+      return new Set([...prev].filter((key) => visibleKeys.has(key)));
     });
   }, [groupedSales]);
 
@@ -294,13 +281,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   const toggleOrderSelection = (orderKey) => {
     setSelectedOrders((prev) => {
       const next = new Set(prev);
-
-      if (next.has(orderKey)) {
-        next.delete(orderKey);
-      } else {
-        next.add(orderKey);
-      }
-
+      if (next.has(orderKey)) next.delete(orderKey);
+      else next.add(orderKey);
       return next;
     });
   };
@@ -316,19 +298,11 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   const toggleSelectAll = () => {
     setSelectedOrders((prev) => {
       const next = new Set(prev);
-
       if (allVisibleSelected) {
-        // Remove all visible orders
-        groupedSales.forEach((group) => {
-          next.delete(group.key);
-        });
+        groupedSales.forEach((group) => next.delete(group.key));
       } else {
-        // Add all visible orders
-        groupedSales.forEach((group) => {
-          next.add(group.key);
-        });
+        groupedSales.forEach((group) => next.add(group.key));
       }
-
       return next;
     });
   };
@@ -343,20 +317,14 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // ---------------------------------------------------------
 
   const handleBulkStatusChange = async (newStatus) => {
-    if (!newStatus || selectedOrders.size === 0) {
-      return;
-    }
+    if (!newStatus || selectedOrders.size === 0) return;
 
     const selectedGroups = groupedSales.filter((group) =>
       selectedOrders.has(group.key),
     );
-
-    if (!selectedGroups.length) {
-      return;
-    }
+    if (!selectedGroups.length) return;
 
     const selectedCount = selectedGroups.length;
-
     const confirmed = window.confirm(
       `Change the status of ${selectedCount} selected ${
         selectedCount === 1 ? "order" : "orders"
@@ -369,21 +337,16 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     }
 
     setBulkUpdating(true);
-
     try {
       const updates = selectedGroups.flatMap((group) =>
         group.lines.map((line) =>
-          updateSale(line._id, {
-            status: newStatus,
-          }),
+          updateSale(line._id, { status: newStatus }),
         ),
       );
 
       await Promise.all(updates);
-
       setSelectedOrders(new Set());
       setBulkStatus("");
-
       await load();
     } catch (err) {
       alert(
@@ -431,15 +394,11 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     updateLine(i, {
       product: productId,
-
       color: product?.colors?.length ? product.colors[0].name : "",
-
       unitPrice: product ? product.retailPrice : "",
-
       lineTotal: product
         ? product.retailPrice * (Number(lines[i].quantity) || 1)
         : "",
-
       priceTouched: false,
     });
   };
@@ -449,7 +408,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     updateLine(i, {
       quantity: value,
-
       lineTotal: !line.priceTouched
         ? round2((Number(line.unitPrice) || 0) * (Number(value) || 0))
         : line.lineTotal,
@@ -467,25 +425,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   const handleStatusChange = async (group, newStatus) => {
     await Promise.all(
-      group.lines.map((l) =>
-        updateSale(l._id, {
-          status: newStatus,
-        }),
-      ),
+      group.lines.map((l) => updateSale(l._id, { status: newStatus })),
     );
-
     load();
   };
 
   const handlePaidStatusChange = async (group, newPaidStatus) => {
     await Promise.all(
       group.lines.map((l) =>
-        updateSale(l._id, {
-          paidStatus: newPaidStatus,
-        }),
+        updateSale(l._id, { paidStatus: newPaidStatus }),
       ),
     );
-
     load();
   };
 
@@ -509,7 +459,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     await Promise.all(group.lines.map((l) => deleteSale(l._id)));
 
-    // Remove from selection if selected
     setSelectedOrders((prev) => {
       const next = new Set(prev);
       next.delete(group.key);
@@ -529,7 +478,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     const billSource = group.lines.find((line) => line.billNo) || group.primary;
 
-    // Extract YYYY-MM-DD format for HTML date input compatibility
     const rawDate = group.primary.orderDate || todayStr();
     const formattedDate = rawDate.includes("T")
       ? rawDate.split("T")[0]
@@ -544,6 +492,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       pointOfContact: group.primary.pointOfContact || "",
       customerPhone: group.primary.customerPhone || "",
       orderDate: formattedDate,
+      location: group.primary.location || defaultLocation?._id || "",
       notes: group.primary.notes || "",
       deliveryPartner: group.deliveryLine?.deliveryPartner || "",
       deliveryFeeCharged:
@@ -569,26 +518,22 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
   const cancelForm = () => {
     setShowForm(false);
     setEditingGroup(null);
-
-    setOrderForm(makeEmptyOrderForm());
-
+    setOrderForm({
+      ...makeEmptyOrderForm(),
+      location: defaultLocation?._id || "",
+    });
     setLines([makeEmptyLine()]);
-
     setOrderDiscount("");
   };
 
   const resolveOrderId = () => {
     const typed = orderForm.orderId.trim();
-
-    if (typed) {
-      return typed;
-    }
-
+    if (typed) return typed;
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-
     return `A-${rand}`;
   };
 
@@ -597,32 +542,20 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // ---------------------------------------------------------
 
   const selectPartner = (value) => {
-    setOrderForm((prev) => ({
-      ...prev,
-      deliveryPartner: value,
-    }));
-
+    setOrderForm((prev) => ({ ...prev, deliveryPartner: value }));
     setDeliveryMenuOpen(false);
   };
 
   const addPartner = () => {
     const partner = window.prompt("Add courier partner name");
-
     const cleaned = partner?.trim();
-
     if (!cleaned) return;
 
     const merged = [...new Set([...deliveryPartners, cleaned])];
-
     setDeliveryPartners(merged);
-
     localStorage.setItem("zeno-delivery-partners", JSON.stringify(merged));
 
-    setOrderForm((prev) => ({
-      ...prev,
-      deliveryPartner: cleaned,
-    }));
-
+    setOrderForm((prev) => ({ ...prev, deliveryPartner: cleaned }));
     setDeliveryMenuOpen(false);
   };
 
@@ -630,16 +563,11 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     if (!partnerName) return;
 
     const next = deliveryPartners.filter((p) => p !== partnerName);
-
     setDeliveryPartners(next);
-
     localStorage.setItem("zeno-delivery-partners", JSON.stringify(next));
 
     if (orderForm.deliveryPartner === partnerName) {
-      setOrderForm((prev) => ({
-        ...prev,
-        deliveryPartner: "",
-      }));
+      setOrderForm((prev) => ({ ...prev, deliveryPartner: "" }));
     }
   };
 
@@ -649,23 +577,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     setSaving(true);
 
     try {
       const shared = {
         status: orderForm.status,
-
         paidStatus: orderForm.paidStatus,
-
         pointOfContact: orderForm.pointOfContact,
-
         customerPhone: orderForm.customerPhone,
-
         orderDate: orderForm.orderDate || todayStr(),
-
+        location: orderForm.location || defaultLocation?._id,
         notes: orderForm.notes,
-
         deliveryPartner: orderForm.deliveryPartner || undefined,
       };
 
@@ -694,18 +616,14 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             : 0;
 
         const rounded = round2(Math.max(0, share));
-
         allocated += rounded;
-
         return rounded;
       });
 
       const baseId = resolveOrderId();
 
-      // EDITING EXISTING ORDER
       if (editingGroup) {
         const currentIds = new Set(lines.map((l) => l._id).filter(Boolean));
-
         const removedLines = editingGroup.lines.filter(
           (l) => !currentIds.has(l._id),
         );
@@ -733,41 +651,30 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
           const linePayload = {
             ...shared,
-
             billIssued:
               Boolean(orderForm.billIssued) &&
               (editingGroup.lines.findIndex((l) => Boolean(l.billNo)) === i ||
                 (editingGroup.lines.every((l) => !l.billNo) && i === 0)),
-
             billNo:
               Boolean(orderForm.billIssued) &&
               (editingGroup.lines.findIndex((l) => Boolean(l.billNo)) === i ||
                 (editingGroup.lines.every((l) => !l.billNo) && i === 0))
                 ? (orderForm.billNo || "").trim() || undefined
                 : undefined,
-
             orderId: lineOrderId,
-
             product: line.product,
-
             color: line.color || undefined,
-
             quantity: Number(line.quantity),
-
             unitPrice: Number(line.unitPrice),
-
             lineTotal: finalLineTotals[i],
-
             deliveryPartner:
               i === 0 ? orderForm.deliveryPartner || undefined : undefined,
-
             deliveryFeeCharged:
               i === 0
                 ? orderForm.deliveryFeeCharged === ""
                   ? 0
                   : Number(orderForm.deliveryFeeCharged)
                 : null,
-
             deliveryCost:
               i === 0
                 ? orderForm.deliveryCost === ""
@@ -782,42 +689,29 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         });
 
         await Promise.all(linePromises);
-      }
-      // CREATE NEW ORDER
-      else {
+      } else {
         const linePromises = lines.map((line, i) => {
           const linePayload = {
             ...shared,
-
             billIssued: Boolean(orderForm.billIssued) && i === 0,
-
             billNo:
               Boolean(orderForm.billIssued) && i === 0
                 ? (orderForm.billNo || "").trim() || undefined
                 : undefined,
-
             orderId: i === 0 ? baseId : `${baseId}-line-${i + 1}`,
-
             product: line.product,
-
             color: line.color || undefined,
-
             quantity: Number(line.quantity),
-
             unitPrice: Number(line.unitPrice),
-
             lineTotal: finalLineTotals[i],
-
             deliveryPartner:
               i === 0 ? orderForm.deliveryPartner || undefined : undefined,
-
             deliveryFeeCharged:
               i === 0
                 ? orderForm.deliveryFeeCharged === ""
                   ? 0
                   : Number(orderForm.deliveryFeeCharged)
                 : null,
-
             deliveryCost:
               i === 0
                 ? orderForm.deliveryCost === ""
@@ -833,9 +727,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       }
 
       cancelForm();
-
       setPage(1);
-
       load();
     } catch (err) {
       alert(err.response?.data?.message || err.message);
@@ -851,7 +743,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   const columns = [
     {
       key: "select",
-
       header: (
         <input
           type="checkbox"
@@ -867,7 +758,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           className="h-4 w-4 cursor-pointer accent-current"
         />
       ),
-
       render: (r) => (
         <input
           type="checkbox"
@@ -889,7 +779,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           ? new Date(rawDate).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
-          
             })
           : "—";
 
@@ -933,9 +822,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     {
       key: "product",
-
       header: "Products",
-
       render: (r) => (
         <div className="min-w-[180px] max-w-[240px] space-y-0.5">
           {r.lines.map((l, idx) => (
@@ -967,9 +854,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     {
       key: "total",
-
       header: "Total",
-
       render: (r) => {
         const delivery = r.deliveryLine?.deliveryFeeCharged || 0;
 
@@ -992,9 +877,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     {
       key: "status",
-
       header: "Status",
-
       render: (r) => (
         <select
           value={r.primary.status}
@@ -1015,9 +898,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     {
       key: "payment",
-
       header: "Payment",
-
       render: (r) => (
         <select
           value={r.primary.paidStatus}
@@ -1038,12 +919,9 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     {
       key: "delivery",
-
       header: "Delivery",
-
       render: (r) => {
         const partner = r.deliveryLine?.deliveryPartner;
-
         const cost = r.deliveryLine?.deliveryCost;
 
         return (
@@ -1063,9 +941,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     {
       key: "notes",
-
       header: "Notes",
-
       render: (r) => (
         <span
           className="block max-w-[160px] truncate text-xs text-muted"
@@ -1078,9 +954,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     {
       key: "actions",
-
       header: "",
-
       render: (r) => (
         <div className="flex gap-2 whitespace-nowrap">
           <button
@@ -1137,7 +1011,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-md border border-line text-muted hover:text-ink hover:border-moss transition-colors"
           >
             <FileDown size={15} />
-
             <span className="hidden sm:inline">Export</span>
           </a>
 
@@ -1147,7 +1020,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                 cancelForm();
               } else {
                 setShowForm(true);
-
                 window.scrollTo({
                   top: 0,
                   behavior: "smooth",
@@ -1157,7 +1029,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             className="flex items-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
           >
             {showForm ? <X size={15} /> : <Plus size={15} />}
-
             {showForm ? "Cancel" : "New order"}
           </button>
         </div>
@@ -1169,7 +1040,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           onKeyDown={focusNextOnEnter}
           className="bg-card border border-line rounded-lg p-5 space-y-4 w-full"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
             <input
               placeholder="Order ID (optional)"
               value={orderForm.orderId}
@@ -1233,6 +1104,23 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
               }
               className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
+
+            <select
+              value={orderForm.location || defaultLocation?._id || ""}
+              onChange={(e) =>
+                setOrderForm({
+                  ...orderForm,
+                  location: e.target.value,
+                })
+              }
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
+            >
+              {locations.map((loc) => (
+                <option key={loc._id} value={loc._id}>
+                  {loc.name} {loc.isDefault ? "(Default)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div
@@ -1304,8 +1192,13 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
             {lines.map((line, i) => {
               const product = productById.get(line.product);
-
               const hasColors = product?.colors?.length > 0;
+
+              const availableStock = stockFor(
+                product,
+                line.color,
+                orderForm.location,
+              );
 
               const regularTotal = round2(
                 (Number(line.unitPrice) || 0) * (Number(line.quantity) || 0),
@@ -1328,10 +1221,9 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                     className="px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-2 sm:col-span-1"
                   >
                     <option value="">Select product…</option>
-
                     {products.map((p) => (
                       <option key={p._id} value={p._id}>
-                        {p.name} — {p.currentStock} in stock
+                        {p.name} — {p.currentStock} total stock
                       </option>
                     ))}
                   </select>
@@ -1340,22 +1232,27 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                     <select
                       value={line.color}
                       onChange={(e) =>
-                        updateLine(i, {
-                          color: e.target.value,
-                        })
+                        updateLine(i, { color: e.target.value })
                       }
                       className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
                     >
-                      {product.colors.map((c) => (
-                        <option key={c.name} value={c.name}>
-                          {c.name} — {c.stock} in stock
-                        </option>
-                      ))}
+                      {product.colors.map((c) => {
+                        const locQty = stockFor(
+                          product,
+                          c.name,
+                          orderForm.location,
+                        );
+                        return (
+                          <option key={c.name} value={c.name}>
+                            {c.name} — {locQty ?? 0} in location
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <div className="px-3 py-2 text-xs text-muted flex items-center">
                       {product
-                        ? `${product.currentStock} in stock`
+                        ? `${stockFor(product, "", orderForm.location) ?? 0} in location`
                         : "No colour"}
                     </div>
                   )}
@@ -1383,7 +1280,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                       onChange={(e) =>
                         updateLine(i, {
                           lineTotal: e.target.value,
-
                           priceTouched: true,
                         })
                       }
@@ -1408,19 +1304,13 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                       </span>
                     )}
 
-                    {product &&
-                      Number(line.quantity) >
-                        (stockFor(product, line.color) ??
-                          product.currentStock) && (
-                        <span className="text-clay">
-                          Only{" "}
-                          {stockFor(product, line.color) ??
-                            product.currentStock}{" "}
-                          in stock
-                          {line.color ? ` for ${line.color}` : ""} — will
-                          oversell if Delivered.
-                        </span>
-                      )}
+                    {product && Number(line.quantity) > (availableStock ?? 0) && (
+                      <span className="text-clay">
+                        Only {availableStock ?? 0} available at location
+                        {line.color ? ` for ${line.color}` : ""} — will
+                        oversell if Delivered.
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -1439,7 +1329,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-paper/60 rounded-md p-3">
               <div className="text-sm">
                 <p className="text-xs text-muted">Subtotal</p>
-
                 <p className="font-mono tabular">{formatMoney(subtotal)}</p>
               </div>
 
@@ -1458,7 +1347,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
               <div className="text-sm">
                 <p className="text-xs text-muted">Final product total</p>
-
                 <p className="font-mono tabular">
                   {formatMoney(finalProductTotal)}
                 </p>
@@ -1466,7 +1354,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
               <div className="text-sm">
                 <p className="text-xs text-muted">Split across lines</p>
-
                 <p className="text-xs text-muted">proportionally, on save</p>
               </div>
             </div>
@@ -1482,7 +1369,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                   className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-left flex items-center justify-between"
                 >
                   <span>{orderForm.deliveryPartner || "Select partner…"}</span>
-
                   <span className="text-xs text-muted">▾</span>
                 </button>
 
@@ -1513,7 +1399,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-
                             deletePartner(partner);
                           }}
                           className="h-5 w-5 rounded-sm text-[11px] text-muted hover:bg-clay-light hover:text-clay"
@@ -1566,7 +1451,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
             <div className="text-sm flex flex-col justify-end">
               <p className="text-xs text-muted">Grand total</p>
-
               <p className="font-mono tabular font-medium">
                 {formatMoney(grandTotal)}
               </p>
@@ -1620,6 +1504,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         </form>
       )}
 
+      {/* MOBILE CARD VIEW */}
       <div className="md:hidden space-y-2">
         <div className="space-y-2">
           <input
@@ -1663,7 +1548,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
               className="col-span-2 w-full px-2 py-1.5 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All Status</option>
-
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -1700,12 +1584,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                   value={bulkStatus}
                   onChange={(e) => {
                     const value = e.target.value;
-
                     setBulkStatus(value);
-
-                    if (value) {
-                      handleBulkStatusChange(value);
-                    }
+                    if (value) handleBulkStatusChange(value);
                   }}
                   disabled={bulkUpdating}
                   className="text-[11px] bg-paper rounded-md border border-line px-2 py-1 disabled:opacity-50"
@@ -1713,7 +1593,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                   <option value="">
                     {bulkUpdating ? "Updating..." : "Change status"}
                   </option>
-
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>
                       {s}
@@ -1741,11 +1620,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         <div className="max-h-[calc(100vh-250px)] overflow-y-auto overflow-x-hidden space-y-1.5 pr-1 overscroll-contain">
           {groupedSales.map((r) => {
             const delivery = Number(r.deliveryLine?.deliveryFeeCharged) || 0;
-
             const total = Number(r.lineTotal || 0) + delivery;
-
             const billNo = r.lines.find((l) => l.billNo)?.billNo || "";
-
             const rawDate = r.primary.orderDate || r.primary.createdAt;
 
             const formattedDate = rawDate
@@ -1757,13 +1633,9 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
               : "—";
 
             const customer = r.primary.pointOfContact || "Walk-in customer";
-
             const phone = r.primary.customerPhone;
-
             const partner = r.deliveryLine?.deliveryPartner;
-
             const deliveryCost = Number(r.deliveryLine?.deliveryCost) || 0;
-
             const isSelected = selectedOrders.has(r.key);
 
             return (
@@ -1792,15 +1664,14 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                           <span className="font-semibold text-xs text-ink truncate">
                             {baseOrderId(r.primary.orderId) || "—"}
                           </span>
-
                           <span className="text-[9px] text-muted shrink-0">
                             {formattedDate}
                           </span>
                         </div>
 
                         {billNo && (
-                          <div className="text-[10px] text-muted truncate  ">
-                            <LucideReceiptText className="w-3 h-3 shrink-0 inline-block mr-1 " />
+                          <div className="text-[10px] text-muted truncate">
+                            <LucideReceiptText className="w-3 h-3 shrink-0 inline-block mr-1" />
                             <span className="text-[10px] text-muted truncate">
                               {billNo}
                             </span>
@@ -1810,7 +1681,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
                       <div className="text-right shrink-0">
                         <div className="text-[9px] text-muted">Total</div>
-
                         <div className="font-semibold text-xs">
                           {formatMoney(total)}
                         </div>
@@ -1821,14 +1691,12 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
                 <div className="ml-6 mt-1">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-semibold text-sm  text-ink truncate">
+                    <span className="font-semibold text-sm text-ink truncate">
                       {customer}
                     </span>
-
                     {phone && (
                       <>
                         <span className="text-[9px] text-muted">•</span>
-
                         <span className="text-[10px] text-muted truncate">
                           {phone}
                         </span>
@@ -1849,11 +1717,9 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                       <span className="font-medium">
                         {l.product?.name || "Product"}
                       </span>
-
                       {l.color && (
                         <span className="text-muted"> ({l.color})</span>
                       )}
-
                       <span className="text-muted font-medium">
                         {" "}
                         ×{l.quantity}
@@ -1873,7 +1739,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                     <div className="text-[8px] font-semibold uppercase tracking-wide text-amber leading-3">
                       Notes
                     </div>
-
                     <div className="text-[10px] leading-4 text-ink whitespace-pre-wrap break-words">
                       {r.primary.notes}
                     </div>
@@ -1911,9 +1776,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                     {partner ? (
                       <div className="flex items-center gap-1 text-[9px] text-muted truncate">
                         <Truck className="w-3 h-3 shrink-0" />
-
                         <span className="truncate">{partner}</span>
-
                         {deliveryCost > 0 && (
                           <span
                             className="shrink-0"
@@ -2022,12 +1885,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                     value={bulkStatus}
                     onChange={(e) => {
                       const value = e.target.value;
-
                       setBulkStatus(value);
-
-                      if (value) {
-                        handleBulkStatusChange(value);
-                      }
+                      if (value) handleBulkStatusChange(value);
                     }}
                     disabled={bulkUpdating}
                     className="text-sm bg-paper rounded-md border border-line px-3 py-1.5 font-medium disabled:opacity-50"
@@ -2083,7 +1942,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                 className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
               >
                 <option value="">All Status</option>
-
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -2100,4 +1958,4 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       </div>
     </div>
   );
-} 
+}

@@ -7,7 +7,8 @@ import {
   X,
   History,
   Loader2,
-  Package,
+  ArrowLeftRight,
+  MapPin,
 } from "lucide-react";
 import {
   fetchProducts,
@@ -20,6 +21,7 @@ import {
   deleteProductType,
   fetchStockLog,
 } from "../api/products";
+import { fetchLocations, createLocation, updateLocation, deleteLocation, transferStock } from "../api/locations";
 import DataTable, { Badge } from "../components/DataTable";
 import { focusNextOnEnter } from "../utils/formNav";
 import { formatMoney } from "../utils/currency";
@@ -46,8 +48,18 @@ const emptyForm = {
   stockChangeComment: "",
 };
 
+const emptyTransferForm = {
+  productId: "",
+  color: "",
+  fromLocationId: "",
+  toLocationId: "",
+  quantity: 1,
+  notes: "",
+};
+
 export default function Inventory({ initialSearch }) {
   const [products, setProducts] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [types, setTypes] = useState(DEFAULT_TYPES);
   const [search, setSearch] = useState(initialSearch || "");
   const [type, setType] = useState("");
@@ -60,6 +72,18 @@ export default function Inventory({ initialSearch }) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [stockError, setStockError] = useState(null);
+
+  // New Location Modal State
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [locationName, setLocationName] = useState("");
+  const [locationAddress, setLocationAddress] = useState("");
+  const [isDefaultLoc, setIsDefaultLoc] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
+
+  // Stock transfer modal state
+  const [transferProduct, setTransferProduct] = useState(null);
+  const [transferForm, setTransferForm] = useState(emptyTransferForm);
+  const [transferring, setTransferring] = useState(false);
 
   // Stock-change history modal
   const [historyFor, setHistoryFor] = useState(null);
@@ -79,10 +103,58 @@ export default function Inventory({ initialSearch }) {
     setTypes(next);
   }, []);
 
+  const loadLocs = useCallback(async () => {
+    const locs = await fetchLocations();
+    setLocations(locs);
+  }, []);
+
   useEffect(() => {
     load();
     loadTypes();
-  }, [load, loadTypes]);
+    loadLocs();
+  }, [load, loadTypes, loadLocs]);
+
+  const handleCreateLocation = async (e) => {
+    e.preventDefault();
+    if (!locationName.trim()) return;
+
+    setSavingLocation(true);
+    try {
+      await createLocation({
+        name: locationName.trim(),
+        address: locationAddress.trim(),
+        isDefault: isDefaultLoc,
+      });
+      setLocationName("");
+      setLocationAddress("");
+      setIsDefaultLoc(false);
+      setShowLocationModal(false);
+      loadLocs();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const handleSetDefaultLocation = async (id) => {
+    try {
+      await updateLocation(id, { isDefault: true });
+      loadLocs();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleDeleteLocation = async (id) => {
+    if (!confirm("Are you sure you want to delete this location?")) return;
+    try {
+      await deleteLocation(id);
+      loadLocs();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    }
+  };
 
   const handleDelete = async (id) => {
     if (
@@ -257,6 +329,33 @@ export default function Inventory({ initialSearch }) {
     }
   };
 
+  const openTransferModal = (p) => {
+    setTransferProduct(p);
+    const defaultLoc = locations.find((l) => l.isDefault) || locations[0];
+    setTransferForm({
+      productId: p._id,
+      color: p.colors?.length ? p.colors[0].name : "",
+      fromLocationId: defaultLoc?._id || "",
+      toLocationId: locations.find((l) => l._id !== defaultLoc?._id)?._id || "",
+      quantity: 1,
+      notes: "",
+    });
+  };
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    setTransferring(true);
+    try {
+      await transferStock(transferForm);
+      setTransferProduct(null);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message);
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   const openHistory = async (product) => {
     setHistoryFor(product);
     setHistoryLoading(true);
@@ -336,6 +435,13 @@ export default function Inventory({ initialSearch }) {
       render: (r) => (
         <div className="flex items-center gap-3">
           <button
+            onClick={() => openTransferModal(r)}
+            className="text-muted hover:text-moss-dark"
+            title="Transfer stock between locations"
+          >
+            <ArrowLeftRight size={14} />
+          </button>
+          <button
             onClick={() => startEdit(r)}
             className="text-xs text-muted hover:text-moss-dark"
           >
@@ -372,13 +478,24 @@ export default function Inventory({ initialSearch }) {
             once an inventory expense is marked Delivered.
           </p>
         </div>
-        <button
-          onClick={() => (showForm ? cancelForm() : setShowForm(true))}
-          className="flex items-center justify-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors shrink-0"
-        >
-          {showForm ? <X size={15} /> : <Plus size={15} />}
-          {showForm ? "Cancel" : "New product"}
-        </button>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowLocationModal(true)}
+            className="flex items-center gap-1.5 border border-line text-ink text-sm px-3 py-2 rounded-md hover:border-moss transition-colors shrink-0"
+          >
+            <MapPin size={15} />
+            Location
+          </button>
+
+          <button
+            onClick={() => (showForm ? cancelForm() : setShowForm(true))}
+            className="flex items-center justify-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors shrink-0"
+          >
+            {showForm ? <X size={15} /> : <Plus size={15} />}
+            {showForm ? "Cancel" : "New product"}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -531,8 +648,7 @@ export default function Inventory({ initialSearch }) {
           <div className="border-t border-line pt-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs uppercase tracking-wide text-muted">
-                Colour variants (optional — stock is tracked per colour when
-                set)
+                Colour variants (optional — stock is tracked per colour when set)
               </p>
               <button
                 type="button"
@@ -590,9 +706,117 @@ export default function Inventory({ initialSearch }) {
         </form>
       )}
 
-      {/* CLEAN & PLEASANT MOBILE CARD VIEW */}
+      {/* MANAGE LOCATIONS MODAL */}
+      {showLocationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4"
+          onClick={() => setShowLocationModal(false)}
+        >
+          <div
+            className="bg-card w-full max-w-md rounded-lg border border-line p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <p className="font-display text-lg text-ink">Manage Locations</p>
+              <button
+                onClick={() => setShowLocationModal(false)}
+                className="text-muted hover:text-ink"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-muted font-medium">
+                Existing Locations
+              </p>
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                {locations.map((loc) => (
+                  <div
+                    key={loc._id}
+                    className="flex items-center justify-between px-3 py-2 bg-paper rounded-md border border-line text-sm text-ink gap-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">{loc.name}</span>
+                        {loc.isDefault && (
+                          <span className="text-[10px] bg-moss-light text-moss-dark px-2 py-0.5 rounded-full font-medium shrink-0">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      {loc.address && (
+                        <p className="text-xs text-muted truncate">{loc.address}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!loc.isDefault && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultLocation(loc._id)}
+                          className="text-[11px] text-moss-dark hover:underline"
+                          title="Set as default fulfillment location"
+                        >
+                          Make default
+                        </button>
+                      )}
+                      {locations.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLocation(loc._id)}
+                          className="text-muted hover:text-clay"
+                          title="Delete location"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateLocation} className="space-y-3 pt-2 border-t border-line">
+              <p className="text-xs uppercase tracking-wide text-muted font-medium">
+                Add New Location
+              </p>
+              <input
+                required
+                placeholder="Location Name (e.g. Retail Store)"
+                value={locationName}
+                onChange={(e) => setLocationName(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
+              />
+              <input
+                placeholder="Address (optional)"
+                value={locationAddress}
+                onChange={(e) => setLocationAddress(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
+              />
+              <label className="flex items-center gap-2 text-xs text-muted cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isDefaultLoc}
+                  onChange={(e) => setIsDefaultLoc(e.target.checked)}
+                  className="accent-moss"
+                />
+                Set as default fulfillment location
+              </label>
+
+              <button
+                disabled={savingLocation}
+                className="w-full bg-moss text-white text-sm rounded-md py-2 font-medium hover:bg-moss-dark disabled:opacity-50 transition-colors"
+              >
+                {savingLocation ? "Saving…" : "Add Location"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE CARD VIEW */}
       <div className="md:hidden space-y-3">
-        {/* Filters & Search */}
         <div className="space-y-2">
           <input
             type="text"
@@ -632,7 +856,6 @@ export default function Inventory({ initialSearch }) {
           <span>Showing {products.length} products</span>
         </div>
 
-        {/* Clean Modern Cards */}
         <div className="space-y-3">
           {products.map((r) => (
             <div
@@ -643,7 +866,6 @@ export default function Inventory({ initialSearch }) {
                   : "border-line"
               }`}
             >
-              {/* Header: Name, SKU, Type & Total Stock Badge */}
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -652,7 +874,7 @@ export default function Inventory({ initialSearch }) {
                     </h3>
                     {r.sku && (
                       <span className="text-[10px] text-muted font-mono">
-                       ({r.sku}) 
+                        ({r.sku})
                       </span>
                     )}
                   </div>
@@ -664,7 +886,6 @@ export default function Inventory({ initialSearch }) {
                   </div>
                 </div>
 
-                {/* Stock Badge */}
                 <div className="text-right shrink-0">
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-medium ${
@@ -679,12 +900,8 @@ export default function Inventory({ initialSearch }) {
                 </div>
               </div>
 
-              {/* Color & Quantity Breakdown */}
               {r.colors?.length > 0 && (
-                <div className="rounded-md   space-y-1.5">
-                  <span className="text-[10px] uppercase tracking-wider text-muted font-medium block">
-                   
-                  </span>
+                <div className="rounded-md space-y-1.5">
                   <div className="flex flex-wrap gap-1.5">
                     {r.colors.map((c) => (
                       <div
@@ -699,37 +916,39 @@ export default function Inventory({ initialSearch }) {
                 </div>
               )}
 
-              {/* Card Action Footer */}
               <div className="flex items-center justify-between pt-2 border-t border-line/60 text-xs text-muted">
                 <span className="text-[11px] font-mono">
                   Value:
-                  <span className="margin-left-1  top-0.5 relative text-ink ">  
-
-                  {formatMoney(r.currentStock * r.retailPrice)}
+                  <span className="margin-left-1 top-0.5 relative text-ink">
+                    {formatMoney(r.currentStock * r.retailPrice)}
                   </span>
                 </span>
 
                 <div className="flex items-center gap-3">
                   <button
+                    onClick={() => openTransferModal(r)}
+                    className="flex items-center gap-1 hover:text-moss-dark transition-colors"
+                    title="Transfer stock"
+                  >
+                    <ArrowLeftRight size={13} />
+                  </button>
+                  <button
                     onClick={() => openHistory(r)}
                     className="flex items-center gap-1 hover:text-ink transition-colors"
                   >
                     <History size={13} />
-                   
                   </button>
                   <button
                     onClick={() => startEdit(r)}
                     className="flex items-center gap-1 hover:text-moss-dark transition-colors"
                   >
                     <Pencil size={13} />
-                    
                   </button>
                   <button
                     onClick={() => handleDelete(r._id)}
                     className="flex items-center gap-1 hover:text-clay transition-colors"
                   >
                     <Trash2 size={13} />
-                   
                   </button>
                 </div>
               </div>
@@ -785,6 +1004,137 @@ export default function Inventory({ initialSearch }) {
         />
       </div>
 
+      {/* TRANSFER MODAL */}
+      {transferProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4"
+          onClick={() => setTransferProduct(null)}
+        >
+          <div
+            className="bg-card w-full max-w-md rounded-lg border border-line p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div>
+                <p className="font-display text-lg text-ink">Transfer Stock</p>
+                <p className="text-xs text-muted">{transferProduct.name}</p>
+              </div>
+              <button
+                onClick={() => setTransferProduct(null)}
+                className="text-muted hover:text-ink"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleTransferSubmit} className="space-y-3">
+              {transferProduct.colors?.length > 0 && (
+                <label className="block text-xs text-muted space-y-1">
+                  Colour variant
+                  <select
+                    value={transferForm.color}
+                    onChange={(e) =>
+                      setTransferForm({ ...transferForm, color: e.target.value })
+                    }
+                    className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
+                  >
+                    {transferProduct.colors.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name} ({c.stock} in stock)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs text-muted space-y-1">
+                  From Location
+                  <select
+                    required
+                    value={transferForm.fromLocationId}
+                    onChange={(e) =>
+                      setTransferForm({
+                        ...transferForm,
+                        fromLocationId: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
+                  >
+                    <option value="">Select source…</option>
+                    {locations.map((loc) => (
+                      <option key={loc._id} value={loc._id}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-xs text-muted space-y-1">
+                  To Location
+                  <select
+                    required
+                    value={transferForm.toLocationId}
+                    onChange={(e) =>
+                      setTransferForm({
+                        ...transferForm,
+                        toLocationId: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
+                  >
+                    <option value="">Select target…</option>
+                    {locations.map((loc) => (
+                      <option key={loc._id} value={loc._id}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <label className="block text-xs text-muted space-y-1">
+                Quantity
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  value={transferForm.quantity}
+                  onChange={(e) =>
+                    setTransferForm({
+                      ...transferForm,
+                      quantity: Math.max(1, Number(e.target.value) || 1),
+                    })
+                  }
+                  className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
+                />
+              </label>
+
+              <label className="block text-xs text-muted space-y-1">
+                Notes (optional)
+                <input
+                  type="text"
+                  placeholder="e.g. Replenishing store display"
+                  value={transferForm.notes}
+                  onChange={(e) =>
+                    setTransferForm({ ...transferForm, notes: e.target.value })
+                  }
+                  className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
+                />
+              </label>
+
+              <button
+                disabled={transferring}
+                className="w-full bg-moss text-white text-sm rounded-md py-2 font-medium hover:bg-moss-dark disabled:opacity-50 transition-colors"
+              >
+                {transferring ? "Transferring…" : "Confirm Transfer"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* HISTORY MODAL */}
       {historyFor && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink/40 px-0 sm:px-4"
