@@ -577,6 +577,26 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent overselling by validating stock availability at the selected location
+    for (const line of lines) {
+      const product = productById.get(line.product);
+      if (product) {
+        const availableStock = stockFor(product, line.color, orderForm.location);
+        const qty = Number(line.quantity) || 0;
+
+        if (availableStock <= 0) {
+          alert(`Item out of stock / No stock in this location for ${product.name}${line.color ? ` (${line.color})` : ""}.`);
+          return;
+        }
+
+        if (qty > availableStock) {
+          alert(`Insufficient stock for ${product.name}${line.color ? ` (${line.color})` : ""}. Only ${availableStock} available in this location.`);
+          return;
+        }
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -1306,9 +1326,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
                     {product && Number(line.quantity) > (availableStock ?? 0) && (
                       <span className="text-clay">
-                        Only {availableStock ?? 0} available at location
-                        {line.color ? ` for ${line.color}` : ""} — will
-                        oversell if Delivered.
+                        {availableStock ?? 0} stock available at location
+                        {line.color ? ` for ${line.color}` : ""} 
                       </span>
                     )}
                   </div>
