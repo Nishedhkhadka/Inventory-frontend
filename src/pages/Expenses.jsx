@@ -336,7 +336,7 @@ export default function Expenses({ initialSearch }) {
           onChange={(e) => handleStatusChange(r, e.target.value)}
           className={`text-xs rounded px-2 py-1 border-0 font-medium cursor-pointer ${
             r.status === "Delivered"
-              ? "bg-moss-light text-moss-dark"
+              ? "bg-success-light text-success-dark"
               : "bg-sky-light text-sky"
           }`}
         >
@@ -843,7 +843,7 @@ export default function Expenses({ initialSearch }) {
                     onChange={(e) => handleStatusChange(r, e.target.value)}
                     className={`text-[10px] rounded px-1.5 py-0.5 border-0 font-medium cursor-pointer ${
                       r.status === "Delivered"
-                        ? "bg-moss-light text-moss-dark"
+                        ? "bg-success-light text-success-dark"
                         : "bg-sky-light text-sky"
                     }`}
                   >

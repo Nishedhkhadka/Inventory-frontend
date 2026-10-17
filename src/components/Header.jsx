@@ -30,7 +30,7 @@ export default function Header({ view, onNavigate, onOpenSearch, onOpenMenu }) {
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={onOpenSearch}
-          className="flex items-center gap-2 text-sm text-muted bg-card border border-line rounded-md px-2.5 sm:px-3 py-1.5 hover:border-moss hover:text-ink transition-colors"
+          className="flex items-center gap-2 text-sm text-muted bg-transparent border border-line rounded-md px-2.5 sm:px-3 py-1.5 hover:border-moss hover:text-ink transition-colors"
         >
           <Search size={14} />
           <span className="hidden lg:inline">Search everything…</span>

@@ -22,15 +22,15 @@ export default function RevenueChart({ data = [] }) {
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid vertical={false} stroke="#DAD3C2" strokeDasharray="3 3" />
+            <CartesianGrid vertical={false} stroke="#E3E3E8" strokeDasharray="3 3" />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: "#726C5F" }}
-              axisLine={{ stroke: "#DAD3C2" }}
+              tick={{ fontSize: 11, fill: "#6E6E73" }}
+              axisLine={{ stroke: "#E3E3E8" }}
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: "#726C5F" }}
+              tick={{ fontSize: 11, fill: "#6E6E73" }}
               axisLine={false}
               tickLine={false}
               width={40}
@@ -38,18 +38,18 @@ export default function RevenueChart({ data = [] }) {
             <Tooltip
               contentStyle={{
                 borderRadius: 8,
-                border: "1px solid #DAD3C2",
+                border: "1px solid #E3E3E8",
                 fontSize: 12,
-                fontFamily: "IBM Plex Mono, monospace",
+                fontFamily: "-apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif",
               }}
               formatter={(v) => [formatMoney(v), "Revenue"]}
             />
             <Line
               type="monotone"
               dataKey="revenue"
-              stroke="#5B6A4C"
+              stroke="#0071E3"
               strokeWidth={2}
-              dot={{ r: 3, fill: "#5B6A4C" }}
+              dot={{ r: 3, fill: "#0071E3" }}
               activeDot={{ r: 5 }}
             />
           </LineChart>

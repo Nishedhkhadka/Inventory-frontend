@@ -124,7 +124,7 @@ export default function Import({ onNavigate }) {
         />
         {file ? (
           <div className="flex flex-col items-center gap-2">
-            <FileSpreadsheet size={28} className="text-moss-dark" />
+            <FileSpreadsheet size={28} className="text-success-dark" />
             <p className="text-sm text-ink font-medium">{file.name}</p>
             <p className="text-xs text-muted">
               {(file.size / 1024).toFixed(0)} KB
@@ -184,7 +184,7 @@ export default function Import({ onNavigate }) {
           )}
         </button>
         {status === "done" && (
-          <span className="flex items-center gap-1.5 text-sm text-moss-dark">
+          <span className="flex items-center gap-1.5 text-sm text-success-dark">
             <CheckCircle2 size={15} /> Import complete
           </span>
         )}

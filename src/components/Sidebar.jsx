@@ -23,7 +23,7 @@ const NAV_ITEMS = [
   { key: "import", label: "Import data", icon: UploadCloud },
 ];
 
-// On desktop (md+) this sits statically in the flex row. On mobile it's a
+// On desktop (md+) this sits statically as a fixed, full-height sidebar. On mobile it's a
 // fixed off-canvas drawer that slides in from the left, with a dimmed
 // backdrop behind it (rendered by App.jsx) to close on outside-tap.
 export default function Sidebar({
@@ -47,7 +47,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`w-60 shrink-0 border-r border-line bg-card flex flex-col fixed inset-y-0 left-0 z-40 transition-transform duration-200 md:static md:translate-x-0 ${
+      className={`w-60 shrink-0 border-r material-sidebar flex flex-col fixed inset-y-0 left-0 z-40 transition-transform duration-[420ms] ease-spring md:sticky md:top-0 md:h-screen md:translate-x-0 overflow-y-auto ${
         open ? "translate-x-0" : "-translate-x-full"
       }`}
     >
@@ -114,7 +114,7 @@ export default function Sidebar({
         )}
 
         <p className="text-xs text-muted leading-relaxed">
-          Simply Minimal . Simply Modern .
+          Simply Minimal . Simply Modern.
         </p>
       </div>
     </aside>

@@ -9,7 +9,7 @@ export default function KPICard({
 }) {
   const toneClass =
     tone === "moss"
-      ? "text-moss-dark"
+      ? "text-success-dark"
       : tone === "clay"
         ? "text-clay"
         : "text-ink";

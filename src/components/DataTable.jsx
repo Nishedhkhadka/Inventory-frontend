@@ -2,7 +2,7 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 export function Badge({ tone = "muted", children }) {
   const tones = {
-    moss: "bg-moss-light text-moss-dark",
+    moss: "bg-success-light text-success-dark",
     clay: "bg-clay-light text-clay",
     sky: "bg-sky-light text-sky",
     rose: "bg-rose-light text-rose",

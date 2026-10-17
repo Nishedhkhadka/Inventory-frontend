@@ -337,7 +337,7 @@ export default function Packaging({ onNavigate }) {
                   {group.orderIds.length > 1 ? `${group.orderIds.length} orders` : group.orderIds[0] || "Order"}
                 </button>
                 {isSelected ? (
-                  <CheckSquare size={15} className="text-moss-dark shrink-0" />
+                  <CheckSquare size={15} className="text-success-dark shrink-0" />
                 ) : (
                   <Square size={15} className="text-muted shrink-0" />
                 )}
@@ -446,7 +446,7 @@ export default function Packaging({ onNavigate }) {
                         <span
                           className={`text-xs font-medium shrink-0 ${
                             m.confidence >= 70
-                              ? "text-moss-dark"
+                              ? "text-success-dark"
                               : m.confidence >= 40
                               ? "text-amber"
                               : "text-muted"

@@ -740,7 +740,7 @@ export default function Inventory({ initialSearch }) {
                       <div className="flex items-center gap-2">
                         <span className="font-medium truncate">{loc.name}</span>
                         {loc.isDefault && (
-                          <span className="text-[10px] bg-moss-light text-moss-dark px-2 py-0.5 rounded-full font-medium shrink-0">
+                          <span className="text-[10px] bg-success-light text-success-dark px-2 py-0.5 rounded-full font-medium shrink-0">
                             Default
                           </span>
                         )}
@@ -891,7 +891,7 @@ export default function Inventory({ initialSearch }) {
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-medium ${
                       r.isLowStock
                         ? "bg-clay text-white"
-                        : "bg-moss-light text-moss-dark"
+                        : "bg-success-light text-success-dark"
                     }`}
                   >
                     {r.isLowStock && <AlertTriangle size={12} />}
@@ -1181,7 +1181,7 @@ export default function Inventory({ initialSearch }) {
                         </span>
                         <span
                           className={`font-mono text-xs font-medium ${
-                            log.delta >= 0 ? "text-moss-dark" : "text-clay"
+                            log.delta >= 0 ? "text-success-dark" : "text-clay"
                           }`}
                         >
                           {log.delta >= 0 ? `+${log.delta}` : log.delta}

@@ -1,7 +1,18 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { formatMoney } from "../utils/currency";
 
-const PALETTE = ["#5B6A4C", "#B0602F", "#8A8368", "#D8B48C", "#3F4633", "#C98F6B"];
+// Apple Slate / Neutral Accent Palette
+// Replace PALETTE with this array:
+// Replace PALETTE with this array:
+// Replace PALETTE with this array:
+const PALETTE = [
+  "#5856D6", // Soft Indigo
+  "#64D2FF", // Soft Sky Blue
+  "#30B0C7", // Soft Teal
+  "#34C759", // Soft Emerald
+  "#FF9F0A", // Warm Sand/Amber
+  "#FF6B81", // Soft Rose
+];
 
 export default function ExpenseDonut({ data = [] }) {
   const chartData = data.map((d) => ({ name: d.category, value: d.total }));
@@ -31,9 +42,9 @@ export default function ExpenseDonut({ data = [] }) {
             <Tooltip
               contentStyle={{
                 borderRadius: 8,
-                border: "1px solid #DAD3C2",
+                border: "1px solid #E3E3E8",
                 fontSize: 12,
-                fontFamily: "IBM Plex Mono, monospace",
+                fontFamily: "-apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif",
               }}
               formatter={(v) => formatMoney(v)}
             />
@@ -41,7 +52,7 @@ export default function ExpenseDonut({ data = [] }) {
               layout="vertical"
               verticalAlign="middle"
               align="right"
-              wrapperStyle={{ fontSize: 11, color: "#726C5F" }}
+              wrapperStyle={{ fontSize: 11, color: "#6E6E73" }}
             />
           </PieChart>
         </ResponsiveContainer>

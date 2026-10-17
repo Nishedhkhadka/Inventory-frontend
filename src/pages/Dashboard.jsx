@@ -171,20 +171,8 @@ function AdminDashboard({ onNavigate }) {
           >
             {showSensitive ? <EyeOff size={15} /> : <Eye size={15} />}
             {showSensitive ? "Hide" : "Reveal"}
-          </button>
-          <DateRangeFilter
-            preset={preset}
-            range={range}
-            onPresetChange={handlePresetChange}
-            onRangeChange={setRange}
-          />
-          <button
-            onClick={() => onNavigate?.("sales", null, { openForm: true })}
-            className="flex items-center gap-1.5 bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors shrink-0"
-          >
-            <Plus size={15} /> New sale
-          </button>
-          <button
+          </button> 
+           <button
             onClick={() =>
               downloadFile(exportAllUrl(params), "zeno-full-export.xlsx")
             }
@@ -192,6 +180,14 @@ function AdminDashboard({ onNavigate }) {
           >
             <FileDown size={15} /> Export all
           </button>
+          <DateRangeFilter
+            preset={preset}
+            range={range}
+            onPresetChange={handlePresetChange}
+            onRangeChange={setRange}
+          />
+        
+        
         </div>
       </div>
 

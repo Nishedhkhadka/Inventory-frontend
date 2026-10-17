@@ -30,13 +30,13 @@ import {
 const STATUS_TONE = {
   "In progress": "bg-sky-light text-sky",
   Packed: "bg-amber-light text-amber",
-  Delivered: "bg-moss-light text-moss-dark",
+  Delivered: "bg-success-light text-success-dark",
   Returned: "bg-clay-light text-clay",
   Damaged: "bg-rose-light text-rose",
 };
 
 const PAYMENT_TONE = {
-  Paid: "bg-moss-light text-moss-dark",
+  Paid: "bg-success-light text-success-dark",
   COD: "bg-amber-light text-amber",
   Unpaid: "bg-rose-light text-rose",
 };
@@ -1170,7 +1170,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-moss/30
                   ${
                     orderForm.billIssued
-                      ? "border-moss bg-moss shadow-sm"
+                      ? "border-success bg-success shadow-sm"
                       : "border-gray-300 bg-gray-200 hover:bg-gray-300"
                   }
                 `}

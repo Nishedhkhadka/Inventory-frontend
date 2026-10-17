@@ -24,7 +24,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm animate-rise">
         <div className="text-center mb-8">
           <p className="font-display text-3xl tracking-tight text-ink">Zeno</p>
           <p className="text-xs text-muted mt-0.5 tracking-wide uppercase">Ledger</p>
@@ -63,7 +63,7 @@ export default function Login() {
 
           <button
             disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 bg-ink text-paper text-sm font-medium py-2.5 rounded-md hover:bg-moss-dark disabled:opacity-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-moss text-white text-sm font-medium py-2.5 rounded-md hover:bg-moss-dark disabled:opacity-50 transition-colors"
           >
             {submitting ? (
               <>

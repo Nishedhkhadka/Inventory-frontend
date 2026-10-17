@@ -21,26 +21,26 @@ export default function TopProductsChart({ data = [] }) {
             layout="vertical"
             margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
           >
-            <CartesianGrid horizontal={false} stroke="#DAD3C2" strokeDasharray="3 3" />
-            <XAxis type="number" tick={{ fontSize: 11, fill: "#726C5F" }} axisLine={false} tickLine={false} />
+            <CartesianGrid horizontal={false} stroke="#E3E3E8" strokeDasharray="3 3" />
+            <XAxis type="number" tick={{ fontSize: 11, fill: "#6E6E73" }} axisLine={false} tickLine={false} />
             <YAxis
               type="category"
               dataKey="name"
               width={110}
-              tick={{ fontSize: 11, fill: "#211F1B" }}
+              tick={{ fontSize: 11, fill: "#1D1D1F" }}
               axisLine={false}
               tickLine={false}
             />
             <Tooltip
               contentStyle={{
                 borderRadius: 8,
-                border: "1px solid #DAD3C2",
+                border: "1px solid #E3E3E8",
                 fontSize: 12,
-                fontFamily: "IBM Plex Mono, monospace",
+                fontFamily: "-apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif",
               }}
               formatter={(v) => [formatMoney(v), "Revenue"]}
             />
-            <Bar dataKey="revenue" fill="#B0602F" radius={[0, 4, 4, 0]} barSize={16} />
+            <Bar dataKey="revenue" fill="#0071E3" radius={[0, 4, 4, 0]} barSize={16} />
           </BarChart>
         </ResponsiveContainer>
       )}

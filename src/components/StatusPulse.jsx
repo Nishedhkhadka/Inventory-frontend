@@ -142,7 +142,7 @@ export default function StatusPulse() {
       className={`flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 truncate transition-colors ${
         attention
           ? "border-amber/30 bg-amber-light text-amber"
-          : "border-moss/20 bg-moss-light text-moss-dark"
+          : "border-success/25 bg-success-light text-success-dark"
       }`}
     >
       <Sparkles size={11} className="shrink-0" />

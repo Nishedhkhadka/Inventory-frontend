@@ -2,9 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------ */
+/* Design tokens                                                        */
+/* ------------------------------------------------------------------ */
+:root {
+  /* Critically damped spring approximation (damping 1.0) */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Gentle overshoot (damping ~0.8) — only for momentum-driven motion */
+  --ease-spring-bounce: cubic-bezier(0.34, 1.35, 0.64, 1);
+
+  --paper-rgb: 245 245 247;
+  --card-rgb: 255 255 255;
+  --ink-rgb: 29 29 31;
+  --moss-rgb: 0 113 227;
+}
+
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-paper text-ink font-sans antialiased;
+    font-optical-sizing: auto;
+    -webkit-tap-highlight-color: transparent;
   }
   ::selection {
     @apply bg-moss-light;
@@ -12,6 +33,63 @@
   *:focus-visible {
     outline: 2px solid theme("colors.moss.DEFAULT");
     outline-offset: 2px;
+  }
+
+  /* Typography: size-specific tracking & leading.
+     Large display text tightens; small text opens up slightly. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  /* Remove the ~300ms tap delay / double-tap-zoom on controls so
+     feedback is immediate. */
+  button,
+  a,
+  [role="button"],
+  summary,
+  label,
+  select,
+  input[type="checkbox"],
+  input[type="radio"] {
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* ---- Translucent materials (backdrop-filter) ---------------------- */
+
+  /* Sticky top chrome. Content scrolls underneath; the material fades
+     out at its lower edge instead of ending in a hard divider. */
+  .material-chrome {
+    position: sticky;
+    isolation: isolate;
+  }
+  .material-chrome::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 0 -14px 0;
+    background-color: rgb(var(--paper-rgb) / 0.72);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 calc(100% - 18px),
+      transparent
+    );
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+    pointer-events: none;
+  }
+
+  /* Structural side panel — heavier than interactive chrome. */
+  .material-sidebar {
+    background-color: rgb(var(--card-rgb) / 0.82);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    backdrop-filter: blur(28px) saturate(170%);
+    border-color: rgb(0 0 0 / 0.08);
   }
 }
 
@@ -21,5 +99,213 @@
   }
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Display type tightens as it grows. */
+  .font-display {
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    font-optical-sizing: auto;
+  }
+  /* Numbers use the same family with tabular figures (no mono face). */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Response — feedback on press, not on release                         */
+/* ------------------------------------------------------------------ */
+button {
+  transition-property: color, background-color, border-color, opacity,
+    box-shadow, transform;
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-spring);
+}
+/* Tailwind's `transition-colors` would otherwise drop `transform`. */
+button.transition-colors {
+  transition-property: color, background-color, border-color,
+    text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: var(--ease-spring);
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+  transition-duration: 90ms; /* instant on press; springs back on release */
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Small text gets a touch of positive tracking (unless the element
+   already sets its own, e.g. uppercase labels). */
+.text-xs:not([class*="tracking-"]),
+.text-\[11px\]:not([class*="tracking-"]),
+.text-\[10px\]:not([class*="tracking-"]) {
+  letter-spacing: 0.01em;
+}
+
+/* Inputs: soft focus halo that eases in rather than snapping. */
+input,
+select,
+textarea {
+  transition: border-color 200ms var(--ease-spring),
+    box-shadow 200ms var(--ease-spring), background-color 200ms var(--ease-spring);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgb(var(--moss-rgb) / 0.18);
+}
+
+/* Table rows ease their hover state. */
+tbody tr {
+  transition: background-color 150ms var(--ease-spring);
+}
+
+/* Cards float very slightly above the paper. */
+.bg-card.border.rounded-lg {
+  box-shadow: theme("boxShadow.sm");
+}
+
+/* ------------------------------------------------------------------ */
+/* Modals & sheets — scrim blurs, surface materialises                  */
+/* ------------------------------------------------------------------ */
+@keyframes zeno-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes zeno-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Blur radius and scale animate together: a material arriving,
+   not a plain opacity fade. */
+@keyframes zeno-materialize {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+    filter: blur(6px);
+  }
+}
+@keyframes zeno-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* Dimmed, blurred backdrop (dim to focus). */
+.fixed.inset-0.z-50,
+.fixed.inset-0.z-30 {
+  background-color: rgb(var(--ink-rgb) / 0.32);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+  animation: zeno-scrim-in 260ms var(--ease-spring) backwards;
+}
+
+/* The dialog surface itself. */
+.fixed.inset-0.z-50 > div {
+  animation: zeno-materialize 420ms var(--ease-spring) backwards;
+  transform-origin: 50% 40%;
+}
+.fixed.inset-0.z-50 > div.bg-card {
+  background-color: rgb(var(--card-rgb) / 0.97);
+  border-color: rgb(0 0 0 / 0.1);
+  box-shadow: theme("boxShadow.xl");
+}
+/* Command palette grows down from the top, where the trigger lives. */
+.fixed.inset-0.z-50.items-start > div {
+  transform-origin: 50% 0;
+}
+/* On phones, bottom sheets rise from the edge they sit on. */
+@media (max-width: 639px) {
+  .fixed.inset-0.z-50.items-end > div {
+    animation: zeno-sheet-up 460ms var(--ease-spring) backwards;
+    transform-origin: 50% 100%;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Accessibility — three independent signals                            */
+/* ------------------------------------------------------------------ */
+
+/* Reduced motion: gentler, non-vestibular equivalents. Keep the
+   opacity changes that aid comprehension; drop slides, scale, springs. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  button:not(:disabled):active {
+    transform: none;
+    opacity: 0.75;
+  }
+  .fixed.inset-0.z-50 > div,
+  .fixed.inset-0.z-50.items-end > div {
+    animation: zeno-fade-in 200ms ease backwards;
+    filter: none;
+  }
+  .animate-rise {
+    animation: zeno-fade-in 200ms ease backwards;
+  }
+  /* Mobile drawer cross-fades instead of sliding. */
+  @media (max-width: 767px) {
+    aside.fixed {
+      transition: opacity 200ms ease, visibility 200ms ease;
+    }
+    aside.fixed.-translate-x-full {
+      transform: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+  /* Loaders: no bouncing; slow, soft pulse instead. */
+  .animate-bounce {
+    animation: zeno-pulse 1.8s ease-in-out infinite;
+  }
+}
+@keyframes zeno-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Reduced transparency: frostier → solid, no blur. */
+@media (prefers-reduced-transparency: reduce) {
+  .material-chrome::before {
+    background-color: rgb(var(--paper-rgb));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .material-sidebar {
+    background-color: rgb(var(--card-rgb));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .fixed.inset-0.z-50,
+  .fixed.inset-0.z-30 {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: rgb(var(--ink-rgb) / 0.5);
+  }
+  .fixed.inset-0.z-50 > div.bg-card {
+    background-color: rgb(var(--card-rgb));
+  }
+}
+
+/* Increased contrast: near-solid surfaces with defined borders. */
+@media (prefers-contrast: more) {
+  .material-chrome::before {
+    background-color: rgb(var(--paper-rgb) / 0.96);
+  }
+  .material-sidebar,
+  .fixed.inset-0.z-50 > div.bg-card {
+    background-color: rgb(var(--card-rgb));
+    border-color: rgb(var(--ink-rgb) / 0.6);
+  }
+  .bg-card.border.rounded-lg {
+    border-color: rgb(var(--ink-rgb) / 0.4);
   }
 }
