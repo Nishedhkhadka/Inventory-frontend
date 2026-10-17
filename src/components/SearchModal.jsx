@@ -78,14 +78,14 @@ export default function SearchModal({ open, onClose, onNavigate }) {
         className="w-full max-w-lg bg-card border border-line rounded-lg shadow-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-line">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-line focus-within:ring-0 focus-within:border-line">
           <Search size={16} className="text-muted" />
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search products, orders, bills, expenses, contacts…"
-            className="flex-1 bg-transparent text-sm focus:outline-none"
+            className="flex-1 bg-transparent text-sm outline-none border-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-none"
           />
           <button onClick={onClose} className="text-muted hover:text-ink">
             <X size={16} />

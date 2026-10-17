@@ -3,7 +3,7 @@ import { pnlExportUrl } from "../api/analytics";
 import { formatMoney } from "../utils/currency";
 import { downloadFile } from "../utils/download";
 
-const pct = (n) => `${n.toFixed(1)}%`;
+const pct = (n) => `${Math.ceil(Number(n) || 0)}%`;
 
 export default function PnLStatement({
   pnl,
@@ -160,7 +160,11 @@ function Line({
       : tone === "clay"
         ? "text-clay"
         : "text-ink";
-  const displayValue = masked ? "••••••" : isText ? value : formatMoney(value);
+  const displayValue = masked
+    ? "••••••"
+    : isText
+      ? value
+      : formatMoney(Math.ceil(Number(value) || 0));
 
   return (
     <div className="flex items-center justify-between py-0.5">

@@ -6,6 +6,12 @@ const MONTH_LABELS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+const formatYAxisTick = (v) => {
+  if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
+  if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
+  return v;
+};
+
 export default function RevenueChart({ data = [] }) {
   const chartData = data.map((d) => ({
     label: `${MONTH_LABELS[d.month - 1]} '${String(d.year).slice(2)}`,
@@ -33,7 +39,8 @@ export default function RevenueChart({ data = [] }) {
               tick={{ fontSize: 11, fill: "#6E6E73" }}
               axisLine={false}
               tickLine={false}
-              width={40}
+              width={45}
+              tickFormatter={formatYAxisTick}
             />
             <Tooltip
               contentStyle={{

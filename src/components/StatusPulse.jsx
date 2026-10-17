@@ -37,6 +37,7 @@ export default function StatusPulse() {
   const [insights, setInsights] = useState([]);
   const [attention, setAttention] = useState(false);
   const [index, setIndex] = useState(0);
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +130,11 @@ export default function StatusPulse() {
   useEffect(() => {
     if (insights.length < 2) return;
     const rotateTimer = setInterval(() => {
-      setIndex((i) => (i + 1) % insights.length);
+      setAnimating(true);
+      setTimeout(() => {
+        setIndex((i) => (i + 1) % insights.length);
+        setAnimating(false);
+      }, 250); // duration of smooth crossfade
     }, ROTATE_MS);
     return () => clearInterval(rotateTimer);
   }, [insights.length]);
@@ -138,15 +143,46 @@ export default function StatusPulse() {
   const current = insights[index];
 
   return (
-    <span
-      className={`flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 truncate transition-colors ${
-        attention
-          ? "border-amber/30 bg-amber-light text-amber"
-          : "border-success/25 bg-success-light text-success-dark"
-      }`}
-    >
-      <Sparkles size={11} className="shrink-0" />
-      {current.text}
-    </span>
+    <>
+      <style>{`
+        @keyframes oneWayScroll {
+          0%, 20% { transform: translateX(0); }
+          80%, 100% { transform: translateX(calc(-100% + 150px)); }
+        }
+        @media (max-width: 767px) {
+          .mobile-scroll-text {
+            display: inline-block;
+            white-space: nowrap;
+            animation: oneWayScroll 8s ease-in-out infinite alternate;
+          }
+          .mobile-scroll-container {
+            overflow: hidden;
+            display: inline-block;
+            max-width: 160px;
+          }
+        }
+        .apple-transition {
+          transition: opacity 0.25s ease-in-out;
+        }
+      `}</style>
+      <span
+        className={`flex items-center gap-1.5 text-xs rounded-full border px-3 py-1 transition-colors font-medium shadow-sm ${
+          attention
+            ? " bg-amber-50 text-amber-700"
+            : "border-emerald-500 bg-emerald-50 text-emerald-900"
+        }`}
+      >
+        <Sparkles size={11} className="shrink-0 mb-0.5" />
+        <span className="mobile-scroll-container md:max-w-none md:overflow-visible md:truncate">
+          <span
+            className={`mobile-scroll-text md:animate-none md:whitespace-normal md:truncate inline-block apple-transition ${
+              animating ? "opacity-0" : "opacity-100"
+            }`}
+          >
+            {current.text}
+          </span>
+        </span>
+      </span>
+    </>
   );
 }

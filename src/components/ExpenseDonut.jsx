@@ -6,11 +6,11 @@ import { formatMoney } from "../utils/currency";
 // Replace PALETTE with this array:
 // Replace PALETTE with this array:
 const PALETTE = [
-  "#5856D6", // Soft Indigo
+  "#0071E3", // Soft Indigo
   "#64D2FF", // Soft Sky Blue
   "#30B0C7", // Soft Teal
-  "#34C759", // Soft Emerald
-  "#FF9F0A", // Warm Sand/Amber
+  "#2E8B57", // Soft Emerald
+  "#FF7F50", // Warm Sand/Amber
   "#FF6B81", // Soft Rose
 ];
 

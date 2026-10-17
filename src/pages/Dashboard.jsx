@@ -188,7 +188,7 @@ function AdminDashboard({ onNavigate }) {
           />
         
         
-        </div>
+        </div> 
       </div>
 
       {loading && <p className="text-sm text-muted">Loading ledger…</p>}
@@ -201,25 +201,25 @@ function AdminDashboard({ onNavigate }) {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard
               label="Delivered revenue"
-              value={summary.totalDeliveredRevenue}
+              value={Math.ceil(summary.totalDeliveredRevenue || 0)}
               tone="moss"
               masked={!showSensitive}
             />
             <KPICard
               label="Total expenses"
-              value={summary.totalExpenses}
+              value={Math.ceil(summary.totalExpenses || 0)}
               tone="clay"
               masked={!showSensitive}
             />
             <KPICard
               label="Net cash flow"
-              value={summary.netCashFlow}
+              value={Math.ceil(summary.netCashFlow || 0)}
               tone={summary.netCashFlow >= 0 ? "moss" : "clay"}
               masked={!showSensitive}
             />
             <KPICard
               label="Warehouse valuation"
-              value={summary.warehouseAssetValuation}
+              value={Math.ceil(summary.warehouseAssetValuation || 0)}
               masked={!showSensitive}
             />
           </div>
@@ -256,7 +256,7 @@ function AdminDashboard({ onNavigate }) {
                         </p>
                       </div>
                       <p className="font-mono text-sm tabular text-ink">
-                        {showSensitive ? formatMoney(p.revenue) : "••••••"}
+                        {showSensitive ? formatMoney(Math.ceil(p.revenue || 0)) : "••••••"}
                       </p>
                     </div>
                   ))
