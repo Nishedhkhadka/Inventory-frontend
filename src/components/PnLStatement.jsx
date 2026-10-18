@@ -3,7 +3,7 @@ import { pnlExportUrl } from "../api/analytics";
 import { formatMoney } from "../utils/currency";
 import { downloadFile } from "../utils/download";
 
-const pct = (n) => `${Math.ceil(Number(n) || 0)}%`;
+const pct = (n) => `${Number(Number(n) || 0).toFixed(2).replace(/\.?0+$/, "")}%`;
 
 export default function PnLStatement({
   pnl,
@@ -14,7 +14,7 @@ export default function PnLStatement({
   if (loading) {
     return (
       <div className="bg-card border border-line rounded-lg px-5 py-4">
-        <p className="text-sm text-muted">Generating P&L statement…</p>
+        <p className="text-sm text-muted">Generating P&amp;L statement…</p>
       </div>
     );
   }
