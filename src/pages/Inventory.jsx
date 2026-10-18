@@ -63,6 +63,7 @@ export default function Inventory({ initialSearch }) {
   const [types, setTypes] = useState(DEFAULT_TYPES);
   const [search, setSearch] = useState(initialSearch || "");
   const [type, setType] = useState("");
+  const [locationId, setLocationId] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [addingType, setAddingType] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
@@ -113,6 +114,43 @@ export default function Inventory({ initialSearch }) {
     loadTypes();
     loadLocs();
   }, [load, loadTypes, loadLocs]);
+
+  // Clamped at 0 to prevent negative stock display issues
+  const getStockForLocation = useCallback((product, locId) => {
+    if (!locId) return Math.max(0, product.currentStock || 0);
+    const locStocks = product.locationStocks || [];
+    const matches = locStocks.filter(
+      (ls) => ls.location && ls.location.toString() === locId.toString()
+    );
+    if (matches.length > 0) {
+      return Math.max(0, matches.reduce((sum, ls) => sum + (ls.stock || 0), 0));
+    }
+    return 0;
+  }, []);
+
+  // Clamped at 0 to prevent negative stock display issues
+  const getColorStockForLocation = useCallback((product, colorName, locId) => {
+    if (!locId) {
+      const c = (product.colors || []).find((x) => x.name === colorName);
+      return c ? Math.max(0, c.stock || 0) : 0;
+    }
+    const locStocks = product.locationStocks || [];
+    const match = locStocks.find(
+      (ls) =>
+        ls.location &&
+        ls.location.toString() === locId.toString() &&
+        (ls.color || "") === (colorName || "")
+    );
+    return match ? Math.max(0, match.stock || 0) : 0;
+  }, []);
+
+  const filteredProducts = products.filter((p) => {
+    if (!locationId) return true;
+    const locStocks = p.locationStocks || [];
+    return locStocks.some(
+      (ls) => ls.location && ls.location.toString() === locationId.toString()
+    );
+  });
 
   const handleCreateLocation = async (e) => {
     e.preventDefault();
@@ -396,16 +434,20 @@ export default function Inventory({ initialSearch }) {
     {
       key: "currentStock",
       header: "Stock on hand",
-      render: (r) => (
-        <span
-          className={`font-mono tabular ${r.isLowStock ? "text-clay font-medium" : ""}`}
-        >
-          {r.currentStock}
-          {r.isLowStock && (
-            <AlertTriangle size={12} className="inline ml-1.5 -mt-0.5" />
-          )}
-        </span>
-      ),
+      render: (r) => {
+        const stock = getStockForLocation(r, locationId);
+        const isLow = stock <= r.lowStockAlert;
+        return (
+          <span
+            className={`font-mono tabular ${isLow ? "text-clay font-medium" : ""}`}
+          >
+            {stock}
+            {isLow && (
+              <AlertTriangle size={12} className="inline ml-1.5 -mt-0.5" />
+            )}
+          </span>
+        );
+      },
     },
     {
       key: "colors",
@@ -413,7 +455,9 @@ export default function Inventory({ initialSearch }) {
       render: (r) =>
         r.colors?.length ? (
           <span className="text-xs text-muted">
-            {r.colors.map((c) => `${c.name} (${c.stock})`).join(", ")}
+            {r.colors
+              .map((c) => `${c.name} (${getColorStockForLocation(r, c.name, locationId)})`)
+              .join(", ")}
           </span>
         ) : (
           "—"
@@ -425,7 +469,7 @@ export default function Inventory({ initialSearch }) {
       header: "Asset value",
       render: (r) => (
         <span className="font-mono tabular text-muted">
-          {formatMoney(r.currentStock * r.retailPrice)}
+          {formatMoney(getStockForLocation(r, locationId) * r.retailPrice)}
         </span>
       ),
     },
@@ -826,11 +870,11 @@ export default function Inventory({ initialSearch }) {
             className="w-full px-3 py-2 text-xs bg-paper rounded-md border border-line"
           />
 
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 text-xs bg-paper rounded-md border border-line"
+              className="w-full px-2.5 py-1.5 text-xs bg-paper rounded-md border border-line"
             >
               <option value="">All types</option>
               {types.map((t) => (
@@ -840,7 +884,22 @@ export default function Inventory({ initialSearch }) {
               ))}
             </select>
 
-            <label className="flex items-center gap-1.5 text-xs text-muted shrink-0 bg-paper px-2.5 py-1.5 rounded-md border border-line cursor-pointer select-none">
+            <select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs bg-paper rounded-md border border-line"
+            >
+              <option value="">All locations</option>
+              {locations.map((loc) => (
+                <option key={loc._id} value={loc._id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-1.5 text-xs text-muted bg-paper px-2.5 py-1.5 rounded-md border border-line cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={lowStockOnly}
@@ -853,109 +912,115 @@ export default function Inventory({ initialSearch }) {
         </div>
 
         <div className="flex items-center justify-between text-[11px] text-muted px-0.5">
-          <span>Showing {products.length} products</span>
+          <span>Showing {filteredProducts.length} products</span>
         </div>
 
         <div className="space-y-3">
-          {products.map((r) => (
-            <div
-              key={r._id}
-              className={`bg-card border rounded-lg p-3.5 shadow-sm space-y-3 transition-colors ${
-                r.isLowStock
-                  ? "border-clay/40 bg-clay-light/5"
-                  : "border-line"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className="font-medium text-sm text-ink leading-tight">
-                      {r.name}
-                    </h3>
-                    {r.sku && (
-                      <span className="text-[10px] text-muted font-mono">
-                        ({r.sku})
+          {filteredProducts.map((r) => {
+            const stock = getStockForLocation(r, locationId);
+            const isLow = stock <= r.lowStockAlert;
+            return (
+              <div
+                key={r._id}
+                className={`bg-card border rounded-lg p-3.5 shadow-sm space-y-3 transition-colors ${
+                  isLow
+                    ? "border-clay/40 bg-clay-light/5"
+                    : "border-line"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="font-medium text-sm text-ink leading-tight">
+                        {r.name}
+                      </h3>
+                      {r.sku && (
+                        <span className="text-[10px] text-muted font-mono">
+                          ({r.sku})
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge tone="muted">{r.type}</Badge>
+                      <span className="text-xs font-mono text-ink font-medium">
+                        {formatMoney(r.retailPrice)}
                       </span>
-                    )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge tone="muted">{r.type}</Badge>
-                    <span className="text-xs font-mono text-ink font-medium">
-                      {formatMoney(r.retailPrice)}
+
+                  <div className="text-right shrink-0">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-medium ${
+                        isLow
+                          ? "bg-clay text-white"
+                          : "bg-success-light text-success-dark"
+                      }`}
+                    >
+                      {isLow && <AlertTriangle size={12} />}
+                      {stock} in stock
                     </span>
                   </div>
                 </div>
 
-                <div className="text-right shrink-0">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-medium ${
-                      r.isLowStock
-                        ? "bg-clay text-white"
-                        : "bg-success-light text-success-dark"
-                    }`}
-                  >
-                    {r.isLowStock && <AlertTriangle size={12} />}
-                    {r.currentStock} in stock
-                  </span>
-                </div>
-              </div>
+                {r.colors?.length > 0 && (
+                  <div className="rounded-md space-y-1.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {r.colors.map((c) => (
+                        <div
+                          key={c.name}
+                          className="flex items-center gap-1 bg-card border border-line px-2 py-1 rounded text-xs text-ink"
+                        >
+                          <span className="font-medium">{c.name}:</span>
+                          <span className="font-mono text-muted">
+                            {getColorStockForLocation(r, c.name, locationId)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              {r.colors?.length > 0 && (
-                <div className="rounded-md space-y-1.5">
-                  <div className="flex flex-wrap gap-1.5">
-                    {r.colors.map((c) => (
-                      <div
-                        key={c.name}
-                        className="flex items-center gap-1 bg-card border border-line px-2 py-1 rounded text-xs text-ink"
-                      >
-                        <span className="font-medium">{c.name}:</span>
-                        <span className="font-mono text-muted">{c.stock}</span>
-                      </div>
-                    ))}
+                <div className="flex items-center justify-between pt-2 border-t border-line/60 text-xs text-muted">
+                  <span className="text-[11px] font-mono">
+                    Value:
+                    <span className="margin-left-1 top-0.5 relative text-ink">
+                      {formatMoney(stock * r.retailPrice)}
+                    </span>
+                  </span>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => openTransferModal(r)}
+                      className="flex items-center gap-1 hover:text-moss-dark transition-colors"
+                      title="Transfer stock"
+                    >
+                      <ArrowLeftRight size={13} />
+                    </button>
+                    <button
+                      onClick={() => openHistory(r)}
+                      className="flex items-center gap-1 hover:text-ink transition-colors"
+                    >
+                      <History size={13} />
+                    </button>
+                    <button
+                      onClick={() => startEdit(r)}
+                      className="flex items-center gap-1 hover:text-moss-dark transition-colors"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(r._id)}
+                      className="flex items-center gap-1 hover:text-clay transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
-              )}
-
-              <div className="flex items-center justify-between pt-2 border-t border-line/60 text-xs text-muted">
-                <span className="text-[11px] font-mono">
-                  Value:
-                  <span className="margin-left-1 top-0.5 relative text-ink">
-                    {formatMoney(r.currentStock * r.retailPrice)}
-                  </span>
-                </span>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => openTransferModal(r)}
-                    className="flex items-center gap-1 hover:text-moss-dark transition-colors"
-                    title="Transfer stock"
-                  >
-                    <ArrowLeftRight size={13} />
-                  </button>
-                  <button
-                    onClick={() => openHistory(r)}
-                    className="flex items-center gap-1 hover:text-ink transition-colors"
-                  >
-                    <History size={13} />
-                  </button>
-                  <button
-                    onClick={() => startEdit(r)}
-                    className="flex items-center gap-1 hover:text-moss-dark transition-colors"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(r._id)}
-                    className="flex items-center gap-1 hover:text-clay transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
-          {products.length === 0 && (
+          {filteredProducts.length === 0 && (
             <div className="py-12 text-center text-sm text-muted bg-card rounded-lg border border-line">
               No products match your filters.
             </div>
@@ -967,7 +1032,7 @@ export default function Inventory({ initialSearch }) {
       <div className="hidden md:block w-full overflow-x-auto min-w-full">
         <DataTable
           columns={columns}
-          rows={products}
+          rows={filteredProducts}
           searchValue={search}
           onSearchChange={setSearch}
           onRowDoubleClick={startEdit}
@@ -986,6 +1051,20 @@ export default function Inventory({ initialSearch }) {
                   </option>
                 ))}
               </select>
+
+              <select
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+                className="text-sm bg-paper rounded-md border border-line px-3 py-1.5"
+              >
+                <option value="">All locations</option>
+                {locations.map((loc) => (
+                  <option key={loc._id} value={loc._id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+
               <label className="flex items-center gap-2 text-sm text-muted">
                 <input
                   type="checkbox"

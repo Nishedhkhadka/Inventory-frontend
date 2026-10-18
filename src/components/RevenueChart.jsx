@@ -13,15 +13,39 @@ const formatYAxisTick = (v) => {
 };
 
 export default function RevenueChart({ data = [] }) {
-  const chartData = data.map((d) => ({
-    label: `${MONTH_LABELS[d.month - 1]} '${String(d.year).slice(2)}`,
-    revenue: d.revenue,
-  }));
+  const chartData = data.map((d) => {
+    let label = d.label || "";
+
+    if (!label) {
+      if (d.dayName) {
+        label = d.dayName;
+      } else if (d.date) {
+        const parsedDate = new Date(d.date);
+        label = !isNaN(parsedDate)
+          ? parsedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+          : d.date;
+      } else if (d.year && d.month && d.day) {
+        const parsedDate = new Date(d.year, d.month - 1, d.day);
+        label = parsedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      } else if (d.month && d.year) {
+        label = `${MONTH_LABELS[d.month - 1]} '${String(d.year).slice(2)}`;
+      } else if (d.year) {
+        label = String(d.year);
+      } else {
+        label = "Period";
+      }
+    }
+
+    return {
+      label,
+      revenue: d.revenue || 0,
+    };
+  });
 
   return (
     <div className="bg-card border border-line rounded-lg px-5 py-4">
       <p className="text-xs uppercase tracking-wide text-muted mb-4">
-        Monthly revenue trajectory
+        Revenue trajectory
       </p>
       {chartData.length === 0 ? (
         <EmptyState />

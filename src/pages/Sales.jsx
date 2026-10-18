@@ -122,10 +122,11 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
   // ---------------------------------------------------------
-  // LOAD SALES & LOCATIONS
+  // LOAD SALES, PRODUCTS & LOCATIONS
   // ---------------------------------------------------------
 
   const load = useCallback(() => {
+    fetchProducts().then(setProducts);
     fetchSales({
       search,
       status,
@@ -179,13 +180,10 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   useEffect(() => {
     if (openFormOnLoad) {
+      fetchProducts().then(setProducts);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [openFormOnLoad]);
-
-  useEffect(() => {
-    fetchProducts().then(setProducts);
-  }, []);
 
   // ---------------------------------------------------------
   // PRODUCT MAP & LOCATION STOCK HELPER
@@ -469,10 +467,11 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   };
 
   // ---------------------------------------------------------
-  // EDIT
+  // EDIT (Fixed location preservation bug)
   // ---------------------------------------------------------
 
   const startEdit = (group) => {
+    fetchProducts().then(setProducts);
     setEditingGroup(group);
     setOrderDiscount("");
 
@@ -483,6 +482,9 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       ? rawDate.split("T")[0]
       : rawDate;
 
+    // Fixed: properly extract and remember the actual order location on edit
+    const orderLocationId = group.primary.location?._id || group.primary.location || defaultLocation?._id || "";
+
     setOrderForm({
       orderId: baseOrderId(group.primary.orderId),
       billNo: billSource.billNo || "",
@@ -492,7 +494,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       pointOfContact: group.primary.pointOfContact || "",
       customerPhone: group.primary.customerPhone || "",
       orderDate: formattedDate,
-      location: group.primary.location || defaultLocation?._id || "",
+      location: orderLocationId,
       notes: group.primary.notes || "",
       deliveryPartner: group.deliveryLine?.deliveryPartner || "",
       deliveryFeeCharged:
@@ -1039,6 +1041,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
               if (showForm) {
                 cancelForm();
               } else {
+                fetchProducts().then(setProducts);
                 setShowForm(true);
                 window.scrollTo({
                   top: 0,
