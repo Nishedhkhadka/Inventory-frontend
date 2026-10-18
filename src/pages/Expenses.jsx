@@ -177,9 +177,17 @@ export default function Expenses({ initialSearch }) {
   const removeColorLine = (i) =>
     setExtraColorLines((lines) => lines.filter((_, idx) => idx !== i));
 
+  // Optimistic status change for instant response
   const handleStatusChange = async (purchase, newStatus) => {
-    await updatePurchase(purchase._id, { status: newStatus });
-    load();
+    setPurchases((prev) =>
+      prev.map((p) => (p._id === purchase._id ? { ...p, status: newStatus } : p))
+    );
+    try {
+      await updatePurchase(purchase._id, { status: newStatus });
+    } catch (err) {
+      alert("Failed to update status on server.");
+      load();
+    }
   };
 
   const handleDelete = async (id) => {

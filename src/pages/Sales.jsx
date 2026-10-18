@@ -311,7 +311,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   };
 
   // ---------------------------------------------------------
-  // BULK STATUS CHANGE
+  // BULK STATUS CHANGE (Optimistic)
   // ---------------------------------------------------------
 
   const handleBulkStatusChange = async (newStatus) => {
@@ -334,6 +334,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       return;
     }
 
+    // Optimistically update UI instantly
+    setSales((prevSales) =>
+      prevSales.map((s) => {
+        const groupKey = baseOrderId(s.orderId) || s._id;
+        if (selectedOrders.has(groupKey)) {
+          return { ...s, status: newStatus };
+        }
+        return s;
+      })
+    );
+
     setBulkUpdating(true);
     try {
       const updates = selectedGroups.flatMap((group) =>
@@ -345,13 +356,14 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       await Promise.all(updates);
       setSelectedOrders(new Set());
       setBulkStatus("");
-      await load();
+      load();
     } catch (err) {
       alert(
         err.response?.data?.message ||
           err.message ||
           "Failed to update orders.",
       );
+      load(); // Revert on error
     } finally {
       setBulkUpdating(false);
     }
@@ -418,23 +430,54 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     setLines((prev) => prev.filter((_, idx) => idx !== i));
 
   // ---------------------------------------------------------
-  // INDIVIDUAL STATUS
+  // INDIVIDUAL STATUS CHANGE (Optimistic & Instant)
   // ---------------------------------------------------------
 
   const handleStatusChange = async (group, newStatus) => {
-    await Promise.all(
-      group.lines.map((l) => updateSale(l._id, { status: newStatus })),
+    // 1. Optimistically update local state instantly
+    setSales((prevSales) =>
+      prevSales.map((s) => {
+        const groupKey = baseOrderId(s.orderId) || s._id;
+        if (groupKey === group.key) {
+          return { ...s, status: newStatus };
+        }
+        return s;
+      })
     );
-    load();
+
+    // 2. Perform backend update silently in the background
+    try {
+      await Promise.all(
+        group.lines.map((l) => updateSale(l._id, { status: newStatus })),
+      );
+    } catch (err) {
+      alert("Failed to update status on server.");
+      load(); // Revert back if it fails
+    }
   };
 
   const handlePaidStatusChange = async (group, newPaidStatus) => {
-    await Promise.all(
-      group.lines.map((l) =>
-        updateSale(l._id, { paidStatus: newPaidStatus }),
-      ),
+    // Optimistically update locally
+    setSales((prevSales) =>
+      prevSales.map((s) => {
+        const groupKey = baseOrderId(s.orderId) || s._id;
+        if (groupKey === group.key) {
+          return { ...s, paidStatus: newPaidStatus };
+        }
+        return s;
+      })
     );
-    load();
+
+    try {
+      await Promise.all(
+        group.lines.map((l) =>
+          updateSale(l._id, { paidStatus: newPaidStatus }),
+        ),
+      );
+    } catch (err) {
+      alert("Failed to update payment status on server.");
+      load();
+    }
   };
 
   // ---------------------------------------------------------
