@@ -24,7 +24,7 @@ export default function Header({ view, onNavigate, onOpenSearch, onOpenMenu }) {
           <Menu size={20} />
         </button>
         <p className="text-xs text-muted uppercase tracking-wide truncate">{TITLES[view] || ""}</p>
-        <StatusPulse />
+        <StatusPulse onNavigate={onNavigate} />
       </div>
 
       <div className="flex items-center gap-2 shrink-0">

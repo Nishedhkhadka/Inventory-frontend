@@ -30,6 +30,7 @@ import {
 const STATUS_TONE = {
   "In progress": "bg-sky-light text-sky",
   Packed: "bg-amber-light text-amber",
+  Transit: "bg-amber-light text-amber",
   Delivered: "bg-success-light text-success-dark",
   Returned: "bg-clay-light text-clay",
   Damaged: "bg-rose-light text-rose",
@@ -41,7 +42,7 @@ const PAYMENT_TONE = {
   Unpaid: "bg-rose-light text-rose",
 };
 
-const STATUSES = ["In progress", "Packed", "Delivered", "Returned", "Damaged"];
+const STATUSES = ["In progress", "Packed", "Transit", "Delivered", "Returned", "Damaged"];
 
 const PAID_STATUSES = ["COD", "Paid", "Unpaid"];
 

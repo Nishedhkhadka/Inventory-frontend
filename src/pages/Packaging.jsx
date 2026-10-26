@@ -74,16 +74,16 @@ export default function Packaging({ onNavigate }) {
   const toggleCardSelected = (group) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      const allSelected = group.ids.every((id) => next.has(id));
-      for (const id of group.ids) {
-        if (allSelected) next.delete(id);
-        else next.add(id);
+      if (next.has(group.key)) {
+        next.delete(group.key);
+      } else {
+        next.add(group.key);
       }
       return next;
     });
   };
 
-  const selectAll = () => setSelectedIds(new Set(sales.map((s) => s._id)));
+  const selectAll = () => setSelectedIds(new Set(groupedPendingSales.map((g) => g.key)));
   const clearSelection = () => setSelectedIds(new Set());
 
   // Quick path: skip the photo/OCR flow entirely and mark a single card
@@ -96,7 +96,7 @@ export default function Packaging({ onNavigate }) {
       setSales((prev) => prev.filter((s) => !group.ids.includes(s._id)));
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        for (const id of group.ids) next.delete(id);
+        next.delete(group.key);
         return next;
       });
     } catch (err) {
@@ -111,7 +111,8 @@ export default function Packaging({ onNavigate }) {
     setBulkMarking(true);
     setBulkError(null);
     try {
-      const ids = [...new Set([...selectedIds])];
+      const selectedGroups = groupedPendingSales.filter((g) => selectedIds.has(g.key));
+      const ids = [...new Set(selectedGroups.flatMap((g) => g.ids))];
       await Promise.all(ids.map((id) => updateSale(id, { status: "Packed" })));
       setSales((prev) => prev.filter((s) => !ids.includes(s._id)));
       clearSelection();
@@ -267,10 +268,10 @@ export default function Packaging({ onNavigate }) {
       {sales.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 bg-card border border-line rounded-lg px-4 py-2.5">
           <button
-            onClick={selectedIds.size === sales.length ? clearSelection : selectAll}
+            onClick={selectedIds.size === groupedPendingSales.length ? clearSelection : selectAll}
             className="flex items-center gap-1.5 text-sm text-muted hover:text-ink"
           >
-            {selectedIds.size === sales.length ? <CheckSquare size={15} /> : <Square size={15} />}
+            {selectedIds.size === groupedPendingSales.length ? <CheckSquare size={15} /> : <Square size={15} />}
             {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
           </button>
           {selectedIds.size > 0 && (
@@ -316,7 +317,7 @@ export default function Packaging({ onNavigate }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {groupedPendingSales.map((group) => {
-          const isSelected = group.ids.every((id) => selectedIds.has(id));
+          const isSelected = selectedIds.has(group.key);
           return (
             <div
               key={group.key}
