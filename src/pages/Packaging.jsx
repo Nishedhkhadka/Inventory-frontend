@@ -59,7 +59,11 @@ export default function Packaging({ onNavigate }) {
       ...group,
       ids: group.sales.map((s) => s._id),
       totalQuantity: group.sales.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0),
-      orderIds: [...new Set(group.sales.map((s) => s.orderId))],
+      orderIds: [...new Set(group.sales.map((s) => {
+        const baseId = s.orderId || "";
+        // Strip out -line-X suffix to show line 1 / base order id only
+        return baseId.replace(/-line-\d+$/i, "");
+      }).filter(Boolean))],
       productNames: [...new Set(group.sales.map((s) => s.product?.name).filter(Boolean))],
     }));
   }, [sales]);
@@ -383,7 +387,7 @@ export default function Packaging({ onNavigate }) {
                     style={{ width: `${holdingProgress}%` }}
                   >
                     <div className="animate-pulse flex items-center">
-                      <Truck size={15} className="text-amber-500 drop-shadow-sm" />
+                      <Truck size={15} className="text-amber-300 drop-shadow-sm" />
                     </div>
                   </div>
                 )}
@@ -444,7 +448,7 @@ export default function Packaging({ onNavigate }) {
                   }}
                   className="font-display text-sm text-ink truncate hover:text-moss-dark hover:underline text-left"
                 >
-                  {group.orderIds.length > 1 ? `${group.orderIds.length} orders` : group.orderIds[0] || "Order"}
+                  {group.orderIds.join(", ") || "Order"}
                 </button>
                 {isSelected ? (
                   <CheckSquare size={15} className="text-success-dark shrink-0" />
