@@ -53,7 +53,7 @@ const emptyTransferForm = {
   color: "",
   fromLocationId: "",
   toLocationId: "",
-  quantity: 1,
+  quantity: "1",
   notes: "",
 };
 
@@ -375,7 +375,7 @@ export default function Inventory({ initialSearch }) {
       color: p.colors?.length ? p.colors[0].name : "",
       fromLocationId: defaultLoc?._id || "",
       toLocationId: locations.find((l) => l._id !== defaultLoc?._id)?._id || "",
-      quantity: 1,
+      quantity: "1",
       notes: "",
     });
   };
@@ -384,7 +384,10 @@ export default function Inventory({ initialSearch }) {
     e.preventDefault();
     setTransferring(true);
     try {
-      await transferStock(transferForm);
+      await transferStock({
+        ...transferForm,
+        quantity: Number(transferForm.quantity) || 1,
+      });
       setTransferProduct(null);
       load();
     } catch (err) {
@@ -1182,7 +1185,7 @@ export default function Inventory({ initialSearch }) {
                   onChange={(e) =>
                     setTransferForm({
                       ...transferForm,
-                      quantity: Math.max(1, Number(e.target.value) || 1),
+                      quantity: e.target.value,
                     })
                   }
                   className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line text-ink"
