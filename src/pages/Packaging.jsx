@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Camera, Loader2, AlertTriangle, CheckCircle2, X, PackageCheck, CheckSquare, Square } from "lucide-react";
+import { Camera, Loader2, AlertTriangle, CheckCircle2, X, PackageCheck, CheckSquare, Square, Truck } from "lucide-react";
 import { fetchPendingPackaging, verifyPackagePhoto, confirmPackaging } from "../api/packaging";
 import { updateSale } from "../api/sales";
 import { formatDate } from "../utils/dateFmt";
@@ -26,6 +26,12 @@ export default function Packaging({ onNavigate }) {
   const fileInputRef = useRef(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState(null);
+
+  // Hold-to-transit timer ref and progress animation state
+  const holdTimerRef = useRef(null);
+  const isHoldingRef = useRef(false);
+  const [holdingProgress, setHoldingProgress] = useState(0);
+  const progressIntervalRef = useRef(null);
 
   // Confirmation dialog state: a single photo can show several packages,
   // so this is a MULTI-select of matches, not one chosen order.
@@ -122,6 +128,87 @@ export default function Packaging({ onNavigate }) {
     } finally {
       setBulkMarking(false);
     }
+  };
+
+  const markSelectedTransit = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkMarking(true);
+    setBulkError(null);
+    try {
+      const selectedGroups = groupedPendingSales.filter((g) => selectedIds.has(g.key));
+      const ids = [...new Set(selectedGroups.flatMap((g) => g.ids))];
+      await Promise.all(ids.map((id) => updateSale(id, { status: "Transit" })));
+      setSales((prev) => prev.filter((s) => !ids.includes(s._id)));
+      clearSelection();
+    } catch (err) {
+      setBulkError(err.response?.data?.message || err.message);
+      load();
+    } finally {
+      setBulkMarking(false);
+    }
+  };
+
+  // Hold-to-Transit gesture handlers without confirmation popup
+  const handleMouseDown = () => {
+    isHoldingRef.current = false;
+    setHoldingProgress(0);
+
+    const startTime = Date.now();
+    const duration = 600;
+
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(100, (elapsed / duration) * 100);
+      setHoldingProgress(pct);
+    }, 16);
+
+    holdTimerRef.current = setTimeout(() => {
+      isHoldingRef.current = true;
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      setHoldingProgress(100);
+      markSelectedTransit();
+      setTimeout(() => setHoldingProgress(0), 200);
+    }, duration);
+  };
+
+  const handleMouseUp = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+
+    if (!isHoldingRef.current) {
+      markSelectedPacked();
+    }
+    isHoldingRef.current = false;
+    setHoldingProgress(0);
+  };
+
+  const handleMouseLeave = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    isHoldingRef.current = false;
+    setHoldingProgress(0);
+  };
+
+  const handleTouchStart = (e) => {
+    e.preventDefault();
+    handleMouseDown();
+  };
+
+  const handleTouchEnd = (e) => {
+    e.preventDefault();
+    handleMouseUp();
   };
 
   // Single global button: one photo can cover multiple packages, so this
@@ -280,19 +367,41 @@ export default function Packaging({ onNavigate }) {
                 Clear
               </button>
               <button
-                onClick={markSelectedPacked}
+                onMouseDown={handleMouseDown}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
                 disabled={bulkMarking}
-                className="ml-auto flex items-center gap-1.5 bg-moss text-white text-sm font-medium px-3 py-1.5 rounded-md hover:bg-moss-dark disabled:opacity-50 transition-colors"
+                title="Click to mark packed, or press & hold for Transit"
+                className="ml-auto relative overflow-hidden flex items-center justify-center gap-1.5 bg-moss text-white text-sm font-medium px-4 py-1.5 rounded-md hover:bg-moss-dark disabled:opacity-50 transition-all duration-150 select-none min-w-[170px]"
               >
-                {bulkMarking ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Marking…
-                  </>
-                ) : (
-                  <>
-                    <PackageCheck size={14} /> Mark {selectedIds.size} as Packed
-                  </>
+                {/* Smooth Delivery Fill & Truck Drive Animation */}
+                {holdingProgress > 0 && (
+                  <div
+                    className="absolute left-0 top-0 bottom-0 bg-moss-dark transition-all ease-out duration-75 flex items-center justify-end pr-1 z-0 shadow-inner"
+                    style={{ width: `${holdingProgress}%` }}
+                  >
+                    <div className="animate-pulse flex items-center">
+                      <Truck size={15} className="text-amber-500 drop-shadow-sm" />
+                    </div>
+                  </div>
                 )}
+                <span className="relative z-10 flex items-center gap-1.5 pointer-events-none">
+                  {bulkMarking ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Updating orders…
+                    </>
+                  ) : holdingProgress > 0 ? (
+                    <>
+                      Moving to Transit…
+                    </>
+                  ) : (
+                    <>
+                      <PackageCheck size={14} /> Mark {selectedIds.size} as Packed
+                    </>
+                  )}
+                </span>
               </button>
             </>
           )}
@@ -346,7 +455,6 @@ export default function Packaging({ onNavigate }) {
 
               <dl className="text-xs space-y-1">
                 <div className="flex items-baseline justify-between gap-2">
-              
                   <dd className="text-ink text-right truncate font-semibold">
                     {group.customer ? (
                       <button
