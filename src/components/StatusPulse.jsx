@@ -6,13 +6,8 @@ import { fetchSummary } from "../api/analytics";
 import { fetchSales } from "../api/sales";
 import { groupPendingPackages } from "../utils/packaging";
 
-// Refreshed on mount and every 60s — cheap enough (a few small fetches) to
-// poll rather than needing a push mechanism; this is a header glance, not
-// a live dashboard number.
 const REFRESH_MS = 60000;
-// If there's more than one insight, cycle through them so the header stays
-// a single short line instead of getting crowded.
-const ROTATE_MS = 5000;
+const ROTATE_MS = 9000; // Increased rotation time for comfortable reading
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -88,7 +83,6 @@ export default function StatusPulse({ onNavigate }) {
               });
             }
 
-            // Orders still in transit for 7+ days check
             const transitList = transitSales?.data || transitSales || [];
             const now = new Date();
             const staleTransitCount = transitList.filter((sale) => {
@@ -115,7 +109,6 @@ export default function StatusPulse({ onNavigate }) {
               });
             }
 
-            // Days of Inventory Remaining (Fast Movers) check
             if (topWeekProduct && topWeekProduct.unitsSold > 0) {
               const matchedProd = (allProducts || []).find(
                 (p) => p._id === topWeekProduct.productId || p.name === topWeekProduct.name
@@ -136,7 +129,6 @@ export default function StatusPulse({ onNavigate }) {
               }
             }
 
-            // Dead Stock / Slow-Moving Item Alert (Only active stock items with >0 stock that haven't sold in 30 days)
             const soldProductIds = new Set(
               (thirtyDaySummary?.productPerformance || []).map((p) => p.productId || p.name)
             );
@@ -186,7 +178,6 @@ export default function StatusPulse({ onNavigate }) {
           },
         )
         .catch(() => {
-          // A header glance shouldn't ever show an error state — just stay quiet.
           if (!cancelled) setInsights([]);
         });
     };
@@ -206,7 +197,7 @@ export default function StatusPulse({ onNavigate }) {
       setTimeout(() => {
         setIndex((i) => (i + 1) % insights.length);
         setAnimating(false);
-      }, 250); // duration of smooth crossfade
+      }, 250);
     }, ROTATE_MS);
     return () => clearInterval(rotateTimer);
   }, [insights.length]);
@@ -223,20 +214,20 @@ export default function StatusPulse({ onNavigate }) {
   return (
     <>
       <style>{`
-        @keyframes oneWayScroll {
-          0%, 20% { transform: translateX(0); }
-          80%, 100% { transform: translateX(calc(-100% + 150px)); }
+        @keyframes smoothScroll {
+          0%, 10% { transform: translateX(0); }
+          90%, 100% { transform: translateX(calc(-100% + 180px)); }
         }
         @media (max-width: 767px) {
           .mobile-scroll-text {
             display: inline-block;
             white-space: nowrap;
-            animation: oneWayScroll 8s ease-in-out infinite alternate;
+            animation: smoothScroll 9s ease-in-out infinite alternate;
           }
           .mobile-scroll-container {
             overflow: hidden;
             display: inline-block;
-            max-width: 160px;
+            max-width: 190px;
           }
         }
         .apple-transition {

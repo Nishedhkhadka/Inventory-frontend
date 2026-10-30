@@ -26,12 +26,13 @@ import {
   LucideReceiptText,
 } from "lucide-react";
 
-// Tone mappings
+// Tone mappings (including Returning status for items on transit back to warehouse)
 const STATUS_TONE = {
   "In progress": "bg-sky-light text-sky",
   Packed: "bg-amber-light text-amber",
   Transit: "bg-amber-light text-amber",
   Delivered: "bg-success-light text-success-dark",
+  Returning: "bg-amber-light text-amber",
   Returned: "bg-clay-light text-clay",
   Damaged: "bg-rose-light text-rose",
 };
@@ -42,7 +43,7 @@ const PAYMENT_TONE = {
   Unpaid: "bg-rose-light text-rose",
 };
 
-const STATUSES = ["In progress", "Packed", "Transit", "Delivered", "Returned", "Damaged"];
+const STATUSES = ["In progress", "Packed", "Transit", "Delivered", "Returning", "Returned", "Damaged"];
 
 const PAID_STATUSES = ["COD", "Paid", "Unpaid"];
 
@@ -335,7 +336,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       return;
     }
 
-    // Optimistically update UI instantly
     setSales((prevSales) =>
       prevSales.map((s) => {
         const groupKey = baseOrderId(s.orderId) || s._id;
@@ -364,7 +364,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           err.message ||
           "Failed to update orders.",
       );
-      load(); // Revert on error
+      load();
     } finally {
       setBulkUpdating(false);
     }
@@ -435,7 +435,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   // ---------------------------------------------------------
 
   const handleStatusChange = async (group, newStatus) => {
-    // 1. Optimistically update local state instantly
     setSales((prevSales) =>
       prevSales.map((s) => {
         const groupKey = baseOrderId(s.orderId) || s._id;
@@ -446,19 +445,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       })
     );
 
-    // 2. Perform backend update silently in the background
     try {
       await Promise.all(
         group.lines.map((l) => updateSale(l._id, { status: newStatus })),
       );
     } catch (err) {
       alert("Failed to update status on server.");
-      load(); // Revert back if it fails
+      load();
     }
   };
 
   const handlePaidStatusChange = async (group, newPaidStatus) => {
-    // Optimistically update locally
     setSales((prevSales) =>
       prevSales.map((s) => {
         const groupKey = baseOrderId(s.orderId) || s._id;
@@ -493,7 +490,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
     if (
       !confirm(
-        `Delete ${label}? This will restock inventory for anything not Returned.`,
+        `Delete ${label}? This will restock inventory for anything not Returned/Returning.`,
       )
     ) {
       return;
@@ -511,7 +508,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   };
 
   // ---------------------------------------------------------
-  // EDIT (Fixed location preservation bug)
+  // EDIT
   // ---------------------------------------------------------
 
   const startEdit = (group) => {
@@ -526,7 +523,6 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       ? rawDate.split("T")[0]
       : rawDate;
 
-    // Fixed: properly extract and remember the actual order location on edit
     const orderLocationId = group.primary.location?._id || group.primary.location || defaultLocation?._id || "";
 
     setOrderForm({
@@ -624,20 +620,35 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prevent overselling by validating stock availability at the selected location
+    const alreadyAllocatedMap = new Map();
+    if (editingGroup) {
+      editingGroup.lines.forEach((l) => {
+        const prodId = l.product?._id || l.product || "";
+        const col = l.color || "";
+        const loc = l.location?._id || l.location || orderForm.location || defaultLocation?._id || "";
+        const key = `${prodId}_${col}_${loc}`;
+        alreadyAllocatedMap.set(key, (alreadyAllocatedMap.get(key) || 0) + (Number(l.quantity) || 0));
+      });
+    }
+
     for (const line of lines) {
       const product = productById.get(line.product);
       if (product) {
-        const availableStock = stockFor(product, line.color, orderForm.location);
+        const rawStock = stockFor(product, line.color, orderForm.location);
+        const locId = orderForm.location || defaultLocation?._id || "";
+        const key = `${line.product}_${line.color || ""}_${locId}`;
+        const alreadyAllocated = editingGroup ? (alreadyAllocatedMap.get(key) || 0) : 0;
+        const effectiveStock = rawStock + alreadyAllocated;
+
         const qty = Number(line.quantity) || 0;
 
-        if (availableStock <= 0) {
+        if (effectiveStock <= 0) {
           alert(`Item out of stock / No stock in this location for ${product.name}${line.color ? ` (${line.color})` : ""}.`);
           return;
         }
 
-        if (qty > availableStock) {
-          alert(`Insufficient stock for ${product.name}${line.color ? ` (${line.color})` : ""}. Only ${availableStock} available in this location.`);
+        if (qty > effectiveStock) {
+          alert(`Insufficient stock for ${product.name}${line.color ? ` (${line.color})` : ""}. Only ${effectiveStock} available in this location.`);
           return;
         }
       }
