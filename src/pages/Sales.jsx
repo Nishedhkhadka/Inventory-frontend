@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Truck,
   LucideReceiptText,
+  Repeat,
 } from "lucide-react";
 
 // Tone mappings (including Returning status for items on transit back to warehouse)
@@ -561,6 +562,63 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ---------------------------------------------------------
+  // EXCHANGE WORKFLOW (1-Click Shortcut)
+  // ---------------------------------------------------------
+
+  const handleExchange = async (group) => {
+    const customerName = group.primary.pointOfContact || "";
+    const customerPhone = group.primary.customerPhone || "";
+    const deliveryPartner = group.deliveryLine?.deliveryPartner || "";
+    const prevDeliveryFee = Number(group.deliveryLine?.deliveryFeeCharged) || 0;
+    const locationId = group.primary.location?._id || group.primary.location || defaultLocation?._id || "";
+    const originalOrderId = baseOrderId(group.primary.orderId);
+
+    const exchangeTargetName = window.prompt("What product/item are they exchanging this for?");
+    if (!exchangeTargetName) return;
+
+    try {
+      await Promise.all(
+        group.lines.map((l) => {
+          const currentNotes = l.notes || "";
+          const exchangeNoteText = currentNotes
+            ? `${currentNotes} | exchange with ${exchangeTargetName}`
+            : `exchange with ${exchangeTargetName}`;
+          return updateSale(l._id, {
+            status: "Returning",
+            notes: exchangeNoteText,
+          });
+        })
+      );
+    } catch (err) {
+      alert("Failed to update original order status to Returning.");
+      return;
+    }
+
+    setEditingGroup(null);
+    setOrderForm({
+      orderId: "",
+      billNo: "",
+      billIssued: false,
+      status: "In progress",
+      paidStatus: group.primary.paidStatus || "COD",
+      pointOfContact: customerName,
+      customerPhone: customerPhone,
+      orderDate: todayStr(),
+      location: locationId,
+      notes: `exchanged item (from ${originalOrderId})`,
+      deliveryPartner: deliveryPartner,
+      deliveryFeeCharged: prevDeliveryFee > 0 ? prevDeliveryFee : "",
+      deliveryCost: "",
+    });
+
+    setLines([makeEmptyLine()]);
+    setOrderDiscount("");
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    load();
+  };
+
   const cancelForm = () => {
     setShowForm(false);
     setEditingGroup(null);
@@ -1033,7 +1091,18 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       key: "actions",
       header: "",
       render: (r) => (
-        <div className="flex gap-2 whitespace-nowrap">
+        <div className="flex gap-2 whitespace-nowrap items-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleExchange(r);
+            }}
+            className="text-muted hover:text-moss"
+            title="Process Exchange"
+          >
+            <Repeat size={15} />
+          </button>
+
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -1869,6 +1938,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExchange(r);
+                      }}
+                      className="text-muted hover:text-moss"
+                      title="Process Exchange"
+                    >
+                      <Repeat size={14} />
+                    </button>
+
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
