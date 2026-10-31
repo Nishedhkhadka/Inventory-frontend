@@ -65,6 +65,8 @@ export default function Packaging({ onNavigate }) {
         return baseId.replace(/-line-\d+$/i, "");
       }).filter(Boolean))],
       productNames: [...new Set(group.sales.map((s) => s.product?.name).filter(Boolean))],
+      colors: [...new Set(group.sales.map((s) => s.color).filter(Boolean))],
+      notes: [...new Set(group.sales.map((s) => s.notes).filter(Boolean))],
     }));
   }, [sales]);
 
@@ -431,57 +433,56 @@ export default function Packaging({ onNavigate }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {groupedPendingSales.map((group) => {
           const isSelected = selectedIds.has(group.key);
+          const hasNote = group.notes.length > 0 && group.notes.join(", ").trim() !== "";
           return (
             <div
               key={group.key}
-              className={`bg-card border rounded-lg p-3 flex flex-col gap-2 cursor-pointer transition-colors ${
+              className={`bg-card border rounded-lg p-3 flex flex-col justify-between cursor-pointer transition-colors ${
                 isSelected ? "border-moss ring-1 ring-moss" : "border-line"
               }`}
               onClick={() => toggleCardSelected(group)}
             >
-              <div className="flex items-start justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigate?.("sales", group.orderIds[0]);
-                  }}
-                  className="font-display text-sm text-ink truncate hover:text-moss-dark hover:underline text-left"
-                >
-                  {group.orderIds.join(", ") || "Order"}
-                </button>
-                {isSelected ? (
-                  <CheckSquare size={15} className="text-success-dark shrink-0" />
-                ) : (
-                  <Square size={15} className="text-muted shrink-0" />
-                )}
-              </div>
-
-              <dl className="text-xs space-y-1">
-                <div className="flex items-baseline justify-between gap-2">
-                  <dd className="text-ink text-right truncate font-semibold">
-                    {group.customer ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNavigate?.("sales", group.customer);
-                        }}
-                        className="text-ink hover:text-moss-dark hover:underline"
-                      >
-                        {group.customer}
-                      </button>
-                    ) : (
-                      "—"
-                    )}
-                  </dd>
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate?.("sales", group.customer);
+                    }}
+                    className="font-display text-sm text-ink truncate hover:text-moss-dark hover:underline text-left"
+                  >
+                    {group.customer || "Customer"}
+                  </button>
+                  {isSelected ? (
+                    <CheckSquare size={15} className="text-success-dark shrink-0" />
+                  ) : (
+                    <Square size={15} className="text-muted shrink-0" />
+                  )}
                 </div>
-                <Row label="Orders" value={group.orderIds.length} />
-                <Row label="Products" value={group.productNames.length > 0 ? group.productNames.join(", ") : "—"} />
-                <Row label="Qty" value={group.totalQuantity} />
-                {group.phone && group.phone !== "—" && <Row label="Phone" value={group.phone} />}
-                <Row label="Date" value={formatDate(group.sales[0]?.orderDate)} />
-              </dl>
+
+                <dl className="text-xs space-y-1 mt-2">
+                  <Row label="Products" value={group.productNames.length > 0 ? group.productNames.join(", ") : "—"} />
+                  <Row label="Color" value={group.colors.length > 0 ? group.colors.join(", ") : "—"} />
+                  
+                  {hasNote ? (
+                    <div className="rounded-md bg-amber-light/50 border border-amber/30 px-2 py-1.5 my-1">
+                      <div className="text-[9px] font-semibold uppercase tracking-wide text-amber leading-3">
+                        Note
+                      </div>
+                      <div className="text-[11px] leading-4 text-ink whitespace-pre-wrap break-words">
+                        {group.notes.join(", ")}
+                      </div>
+                    </div>
+                  ) : (
+                    <Row label="Note" value="—" />
+                  )}
+
+                  <Row label="Qty" value={group.totalQuantity} />
+                  {group.phone && group.phone !== "—" && <Row label="Phone" value={group.phone} />}
+                  <Row label="Date" value={formatDate(group.sales[0]?.orderDate)} />
+                </dl>
+              </div>
 
               <button
                 onClick={(e) => {
@@ -489,7 +490,7 @@ export default function Packaging({ onNavigate }) {
                   markPacked(group);
                 }}
                 disabled={markingId === group.key}
-                className="mt-1 flex items-center justify-center gap-1.5 bg-paper border border-line text-ink text-xs font-medium py-1.5 rounded-md hover:border-moss hover:text-moss-dark disabled:opacity-50 transition-colors"
+                className="mt-2 flex items-center justify-center gap-1.5 bg-paper border border-line text-ink text-xs font-medium py-1.5 rounded-md hover:border-moss hover:text-moss-dark disabled:opacity-50 transition-colors"
               >
                 {markingId === group.key ? (
                   <Loader2 size={12} className="animate-spin" />
@@ -633,11 +634,17 @@ export default function Packaging({ onNavigate }) {
   );
 }
 
-function Row({ label, value }) {
+function Row({ label, value, fullWrap }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
       <dt className="text-muted shrink-0">{label}</dt>
-      <dd className="text-ink text-right truncate">{value}</dd>
+      <dd
+        className={`text-ink text-right ${
+          fullWrap ? "whitespace-pre-wrap break-words" : "truncate"
+        }`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
