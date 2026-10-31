@@ -41,6 +41,18 @@ export default function Packaging({ onNavigate }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState(null);
 
+  // Helper to format date as "dec 23 2026"
+  const formatCustomDate = (dateStr) => {
+    if (!dateStr) return "—";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const month = months[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    return `${month} ${day} ${year}`;
+  };
+
   const groupedPendingSales = useMemo(() => {
     const groups = new Map();
     for (const sale of sales) {
@@ -430,75 +442,99 @@ export default function Packaging({ onNavigate }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {groupedPendingSales.map((group) => {
           const isSelected = selectedIds.has(group.key);
           const hasNote = group.notes.length > 0 && group.notes.join(", ").trim() !== "";
+          const productList = group.productNames.length > 0 ? group.productNames.join(", ") : "—";
+          const colorList = group.colors.length > 0 ? group.colors.join(", ") : "—";
+
           return (
             <div
               key={group.key}
-              className={`bg-card border rounded-lg p-3 flex flex-col justify-between cursor-pointer transition-colors ${
-                isSelected ? "border-moss ring-1 ring-moss" : "border-line"
+              className={`bg-card border rounded-lg p-3 flex flex-col justify-between shadow-2xs transition-all cursor-pointer ${
+                isSelected ? "border-moss ring-2 ring-moss/20 bg-moss-light/10" : "border-line hover:border-gray-400"
               }`}
               onClick={() => toggleCardSelected(group)}
             >
-              <div>
+              <div className="space-y-2.5">
+                {/* Top Row: Customer & Checkbox */}
                 <div className="flex items-start justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate?.("sales", group.customer);
-                    }}
-                    className="font-display text-sm text-ink truncate hover:text-moss-dark hover:underline text-left"
-                  >
-                    {group.customer || "Customer"}
-                  </button>
-                  {isSelected ? (
-                    <CheckSquare size={15} className="text-success-dark shrink-0" />
-                  ) : (
-                    <Square size={15} className="text-muted shrink-0" />
-                  )}
+                  <div className="min-w-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigate?.("sales", group.customer);
+                      }}
+                      className="font-display text-sm font-semibold text-ink truncate hover:text-moss-dark hover:underline text-left block w-full"
+                    >
+                      {group.customer || "Customer"}
+                    </button>
+                    {group.phone && group.phone !== "—" && (
+                      <p className="text-[11px] text-muted leading-tight">{group.phone}</p>
+                    )}
+                  </div>
+                  <div className="pt-0.5 shrink-0">
+                    {isSelected ? (
+                      <CheckSquare size={16} className="text-moss" />
+                    ) : (
+                      <Square size={16} className="text-muted/50" />
+                    )}
+                  </div>
                 </div>
 
-                <dl className="text-xs space-y-1 mt-2">
-                  <Row label="Products" value={group.productNames.length > 0 ? group.productNames.join(", ") : "—"} />
-                  <Row label="Color" value={group.colors.length > 0 ? group.colors.join(", ") : "—"} />
-                  
-                  {hasNote ? (
-                    <div className="rounded-md bg-amber-light/50 border border-amber/30 px-2 py-1.5 my-1">
-                      <div className="text-[9px] font-semibold uppercase tracking-wide text-amber leading-3">
-                        Note
-                      </div>
-                      <div className="text-[11px] leading-4 text-ink whitespace-pre-wrap break-words">
-                        {group.notes.join(", ")}
-                      </div>
-                    </div>
-                  ) : (
-                    <Row label="Note" value="—" />
-                  )}
+                {/* Divider */}
+                <div className="h-px bg-line/50 w-full" />
 
-                  <Row label="Qty" value={group.totalQuantity} />
-                  {group.phone && group.phone !== "—" && <Row label="Phone" value={group.phone} />}
-                  <Row label="Date" value={formatDate(group.sales[0]?.orderDate)} />
-                </dl>
+                {/* Compact Content Block */}
+                <div className="space-y-1 text-xs text-ink">
+                  <div className="font-semibold text-xs leading-snug truncate">{productList}</div>
+                  
+                  <div className="flex items-center justify-between text-[11px] text-muted">
+                    <span className="bg-paper border border-line px-1.5 py-0.5 rounded font-medium text-ink truncate max-w-[120px]">
+                      {colorList}
+                    </span>
+                    <span className="bg-paper border border-line px-1.5 py-0.5 rounded font-medium text-ink">
+                      Qty: {group.totalQuantity}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Note Callout Box (if any) */}
+                {hasNote && (
+                  <div className="rounded-md bg-amber-light/50 border border-amber/30 px-2 py-1.5 text-[11px] space-y-0.5">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-amber-dark block">
+                      Note
+                    </span>
+                    <p className="text-ink font-medium leading-tight whitespace-pre-wrap break-words">
+                      {group.notes.join(", ")}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  markPacked(group);
-                }}
-                disabled={markingId === group.key}
-                className="mt-2 flex items-center justify-center gap-1.5 bg-paper border border-line text-ink text-xs font-medium py-1.5 rounded-md hover:border-moss hover:text-moss-dark disabled:opacity-50 transition-colors"
-              >
-                {markingId === group.key ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <PackageCheck size={12} />
-                )}
-                Mark Packed
-              </button>
+              {/* Footer / Action Button */}
+              <div className="mt-3 pt-2 border-t border-line/40 flex items-center justify-between gap-2">
+                <span className="text-[10px] text-muted truncate">
+                  {formatCustomDate(group.sales[0]?.orderDate)}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markPacked(group);
+                  }}
+                  disabled={markingId === group.key}
+                  className="flex items-center justify-center gap-1 bg-paper border border-line text-ink text-[11px] font-semibold px-2.5 py-1 rounded-md hover:border-moss hover:text-moss-dark disabled:opacity-50 transition-colors shadow-2xs shrink-0"
+                >
+                  {markingId === group.key ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <PackageCheck size={12} />
+                  )}
+                  Mark Packed
+                </button>
+              </div>
             </div>
           );
         })}
@@ -630,21 +666,6 @@ export default function Packaging({ onNavigate }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Row({ label, value, fullWrap }) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <dt className="text-muted shrink-0">{label}</dt>
-      <dd
-        className={`text-ink text-right ${
-          fullWrap ? "whitespace-pre-wrap break-words" : "truncate"
-        }`}
-      >
-        {value}
-      </dd>
     </div>
   );
 }
