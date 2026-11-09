@@ -18,12 +18,7 @@ import { formatDate, todayStr } from "../utils/dateFmt";
 import { formatMoney } from "../utils/currency";
 import { downloadFile } from "../utils/download";
 
-// Just two states now: still on order, or actually landed. Delivered is
-// what triggers the automatic stock credit for inventory procurements.
 const STATUSES = ["Ordered", "Delivered"];
-// Starting point only — the real list comes from the backend (baseline +
-// whatever custom categories are already in use) and can grow from the
-// form itself via "+ Add new category".
 const DEFAULT_CATEGORIES = [
   "Inventory",
   "Meta Ads",
@@ -64,10 +59,8 @@ export default function Expenses({ initialSearch }) {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingGroupIds, setEditingGroupIds] = useState(null);
   const [form, setForm] = useState(makeEmptyForm);
-  // Extra colour+quantity+cost lines for a single procurement that covers
-  // several colours of the same product in one purchase order.
   const [extraColorLines, setExtraColorLines] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -101,6 +94,36 @@ export default function Expenses({ initialSearch }) {
   const isInventory = form.category === "Inventory";
   const hasColorVariants = isInventory && selectedProduct?.colors?.length > 0;
 
+  // Group purchases that share the exact same orderDate, supplier, productName, category, and status into single display rows
+  const groupedPurchases = useMemo(() => {
+    const map = new Map();
+    for (const p of purchases) {
+      const dateKey = p.orderDate ? p.orderDate.slice(0, 10) : "";
+      const key = `${dateKey}_${p.supplier || ""}_${p.productName}_${p.category}_${p.status}`;
+      
+      if (!map.has(key)) {
+        map.set(key, {
+          ...p,
+          ids: [p._id],
+          colorsList: p.color ? [{ color: p.color, qty: p.quantity || 0, cost: p.cost || 0 }] : [],
+          totalQty: p.quantity || 0,
+          totalCost: p.cost || 0,
+          isGrouped: false,
+        });
+      } else {
+        const existing = map.get(key);
+        existing.ids.push(p._id);
+        if (p.color) {
+          existing.colorsList.push({ color: p.color, qty: p.quantity || 0, cost: p.cost || 0 });
+        }
+        existing.totalQty += (p.quantity || 0);
+        existing.totalCost += (p.cost || 0);
+        existing.isGrouped = true;
+      }
+    }
+    return Array.from(map.values());
+  }, [purchases]);
+
   const handleProductChange = (productId) => {
     const product = products.find((p) => p._id === productId);
     setForm((f) => ({
@@ -121,7 +144,6 @@ export default function Expenses({ initialSearch }) {
     setForm((f) => ({
       ...f,
       category: cat,
-      // Non-inventory expenses aren't tied to a catalog product.
       product: cat === "Inventory" ? f.product : "",
       color: cat === "Inventory" ? f.color : "",
     }));
@@ -170,54 +192,72 @@ export default function Expenses({ initialSearch }) {
       { color: nextColor, quantity: "", cost: "" },
     ]);
   };
+
   const updateColorLine = (i, key, value) =>
     setExtraColorLines((lines) =>
       lines.map((l, idx) => (idx === i ? { ...l, [key]: value } : l)),
     );
+
   const removeColorLine = (i) =>
     setExtraColorLines((lines) => lines.filter((_, idx) => idx !== i));
 
-  // Optimistic status change for instant response
-  const handleStatusChange = async (purchase, newStatus) => {
-    setPurchases((prev) =>
-      prev.map((p) => (p._id === purchase._id ? { ...p, status: newStatus } : p))
-    );
+  const handleStatusChange = async (group, newStatus) => {
     try {
-      await updatePurchase(purchase._id, { status: newStatus });
+      for (const id of group.ids) {
+        await updatePurchase(id, { status: newStatus });
+      }
+      load();
     } catch (err) {
       alert("Failed to update status on server.");
       load();
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteGroup = async (group) => {
     if (
       !confirm(
         "Delete this expense record? This will reverse any stock it added.",
       )
     )
       return;
-    await deletePurchase(id);
-    load();
+    try {
+      for (const id of group.ids) {
+        await deletePurchase(id);
+      }
+      load();
+    } catch (err) {
+      alert("Failed to delete purchase records.");
+    }
   };
 
-  const startEdit = (purchase) => {
-    setEditingId(purchase._id);
-    setExtraColorLines([]);
+  const startEditGroup = (group) => {
+    const matchingPurchases = purchases.filter((p) => group.ids.includes(p._id));
+    if (matchingPurchases.length === 0) return;
+
+    const first = matchingPurchases[0];
+    setEditingGroupIds(group.ids);
+
+    const extras = matchingPurchases.slice(1).map((p) => ({
+      color: p.color || "",
+      quantity: p.quantity ?? "",
+      cost: p.cost ?? "",
+    }));
+
+    setExtraColorLines(extras);
     setForm({
-      productName: purchase.productName,
-      product: purchase.product?._id || "",
-      color: purchase.color || "",
-      quantity: purchase.quantity ?? "",
-      cost: purchase.cost,
-      category: purchase.category,
-      status: purchase.status,
-      supplier: purchase.supplier || "",
-      orderDate: purchase.orderDate ? purchase.orderDate.slice(0, 10) : "",
-      arriveBy: purchase.arriveBy ? purchase.arriveBy.slice(0, 10) : "",
-      weightCbm: purchase.weightCbm || "",
-      tags: (purchase.tags || []).join(", "),
-      notes: purchase.notes || "",
+      productName: first.productName,
+      product: first.product?._id || "",
+      color: first.color || "",
+      quantity: first.quantity ?? "",
+      cost: first.cost,
+      category: first.category,
+      status: first.status,
+      supplier: first.supplier || "",
+      orderDate: first.orderDate ? first.orderDate.slice(0, 10) : "",
+      arriveBy: first.arriveBy ? first.arriveBy.slice(0, 10) : "",
+      weightCbm: first.weightCbm || "",
+      tags: (first.tags || []).join(", "),
+      notes: first.notes || "",
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -225,7 +265,7 @@ export default function Expenses({ initialSearch }) {
 
   const cancelForm = () => {
     setShowForm(false);
-    setEditingId(null);
+    setEditingGroupIds(null);
     setForm(makeEmptyForm());
     setExtraColorLines([]);
     setAddingCategory(false);
@@ -254,45 +294,83 @@ export default function Expenses({ initialSearch }) {
         notes: form.notes,
       };
 
-      if (editingId || !hasColorVariants || extraColorLines.length === 0) {
-        // Single line: either editing (always one document), or a
-        // non-colour / single-colour purchase.
-        await (editingId
-          ? updatePurchase(editingId, {
-              ...shared,
-              product: isInventory && form.product ? form.product : undefined,
-              color: isInventory && form.color ? form.color : undefined,
-              quantity: form.quantity ? Number(form.quantity) : undefined,
-              cost: Number(form.cost),
-            })
-          : createPurchase({
-              ...shared,
-              product: isInventory && form.product ? form.product : undefined,
-              color: isInventory && form.color ? form.color : undefined,
-              quantity: form.quantity ? Number(form.quantity) : undefined,
-              cost: Number(form.cost),
-            }));
+      const allLines = [
+        {
+          color: form.color,
+          quantity: Number(form.quantity) || 0,
+          cost: Number(form.cost) || 0,
+        },
+        ...(hasColorVariants
+          ? extraColorLines
+              .filter((l) => l.color && l.quantity !== "")
+              .map((l) => ({
+                color: l.color,
+                quantity: Number(l.quantity) || 0,
+                cost: Number(l.cost) || 0,
+              }))
+          : []),
+      ];
+
+      const totalCostInput = Number(form.cost) || 0;
+      const totalQty = allLines.reduce((sum, l) => sum + l.quantity, 0);
+      const hasCustomCosts = allLines.some((l) => l.cost > 0 && l !== allLines[0]);
+
+      const finalizedItems = allLines.map((l) => {
+        let itemCost = l.cost;
+        if (!hasCustomCosts && totalCostInput > 0 && totalQty > 0) {
+          itemCost = Math.round((totalCostInput * (l.quantity / totalQty)) * 100) / 100;
+        }
+        return {
+          color: l.color,
+          quantity: l.quantity,
+          cost: itemCost,
+        };
+      });
+
+      if (editingGroupIds && editingGroupIds.length > 0) {
+        // Update existing records in editingGroupIds, create new ones if added, delete extras if removed
+        for (let i = 0; i < finalizedItems.length; i++) {
+          const item = finalizedItems[i];
+          const payload = {
+            ...shared,
+            product: isInventory && form.product ? form.product : undefined,
+            color: isInventory && item.color ? item.color : undefined,
+            quantity: item.quantity,
+            cost: item.cost,
+          };
+
+          if (i < editingGroupIds.length) {
+            await updatePurchase(editingGroupIds[i], payload);
+          } else {
+            await createPurchase(payload);
+          }
+        }
+
+        // If user removed color lines, delete the excess old documents
+        if (finalizedItems.length < editingGroupIds.length) {
+          const idsToDelete = editingGroupIds.slice(finalizedItems.length);
+          for (const idToDelete of idsToDelete) {
+            await deletePurchase(idToDelete);
+          }
+        }
       } else {
-        // Multi-colour procurement: one Purchase document per colour line,
-        // each with its own quantity and cost, sharing everything else.
-        const lines = [
-          {
-            color: form.color,
+        if (!hasColorVariants || finalizedItems.length <= 1) {
+          await createPurchase({
+            ...shared,
+            product: isInventory && form.product ? form.product : undefined,
+            color: isInventory && form.color ? form.color : undefined,
             quantity: form.quantity ? Number(form.quantity) : undefined,
             cost: Number(form.cost),
-          },
-          ...extraColorLines
-            .filter((l) => l.color && l.quantity && l.cost)
-            .map((l) => ({
-              color: l.color,
-              quantity: Number(l.quantity),
-              cost: Number(l.cost),
-            })),
-        ];
-        for (const line of lines) {
-          await createPurchase({ ...shared, product: form.product, ...line });
+          });
+        } else {
+          await createPurchase({
+            ...shared,
+            product: form.product,
+            items: finalizedItems,
+          });
         }
       }
+
       cancelForm();
       setPage(1);
       load();
@@ -317,17 +395,27 @@ export default function Expenses({ initialSearch }) {
       render: (r) => (
         <span>
           {r.productName}
-          {r.color && <span className="text-muted"> · {r.color}</span>}
+          {r.colorsList.length > 0 ? (
+            <span className="text-muted block text-xs">
+              {r.colorsList.map((c) => `${c.color}: ${c.qty}`).join(" · ")}
+            </span>
+          ) : (
+            r.color && <span className="text-muted"> · {r.color}</span>
+          )}
         </span>
       ),
     },
     { key: "supplier", header: "Supplier" },
-    { key: "quantity", header: "Qty" },
+    {
+      key: "quantity",
+      header: "Qty",
+      render: (r) => <span className="font-mono tabular">{r.totalQty}</span>,
+    },
     {
       key: "cost",
       header: "Cost",
       render: (r) => (
-        <span className="font-mono tabular">{formatMoney(r.cost)}</span>
+        <span className="font-mono tabular">{formatMoney(r.totalCost)}</span>
       ),
     },
     {
@@ -390,14 +478,16 @@ export default function Expenses({ initialSearch }) {
       render: (r) => (
         <div className="flex items-center gap-2">
           <button
-            onClick={() => startEdit(r)}
+            onClick={() => startEditGroup(r)}
             className="text-muted hover:text-moss-dark"
+            title="Edit expense"
           >
             <Pencil size={14} />
           </button>
           <button
-            onClick={() => handleDelete(r._id)}
+            onClick={() => handleDeleteGroup(r)}
             className="text-muted hover:text-clay"
+            title="Delete expense"
           >
             <Trash2 size={14} />
           </button>
@@ -578,7 +668,6 @@ export default function Expenses({ initialSearch }) {
           />
 
           {hasColorVariants &&
-            !editingId &&
             extraColorLines.map((line, i) => (
               <div
                 key={i}
@@ -610,10 +699,10 @@ export default function Expenses({ initialSearch }) {
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="Cost"
+                  placeholder="Cost (optional override)"
                   value={line.cost}
                   onChange={(e) => updateColorLine(i, "cost", e.target.value)}
-                  className="w-24 sm:w-28 px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                  className="w-36 sm:w-44 px-3 py-2 text-sm bg-paper rounded-md border border-line"
                 />
                 <button
                   type="button"
@@ -626,7 +715,6 @@ export default function Expenses({ initialSearch }) {
             ))}
 
           {hasColorVariants &&
-            !editingId &&
             extraColorLines.length < selectedProduct.colors.length - 1 && (
               <button
                 type="button"
@@ -693,13 +781,7 @@ export default function Expenses({ initialSearch }) {
 
           {isInventory && form.status === "Delivered" && (
             <p className="col-span-1 sm:col-span-2 md:col-span-4 text-xs text-moss-dark -mt-1">
-              Saving this will add {form.quantity || 0} unit(s) to{" "}
-              {selectedProduct?.name || "the selected product"}'s stock
-              {form.color ? ` (${form.color})` : ""}
-              {extraColorLines.length > 0
-                ? ", plus the additional colour lines above"
-                : ""}
-              .
+              Saving this will add units to {selectedProduct?.name || "the selected product"}'s stock across all specified colors.
             </p>
           )}
 
@@ -707,7 +789,7 @@ export default function Expenses({ initialSearch }) {
             disabled={saving}
             className="w-full bg-moss text-white text-sm rounded-md py-2.5 sm:py-2 hover:bg-moss-dark disabled:opacity-50 col-span-1 sm:col-span-2 md:col-span-4 mt-1 font-medium transition-colors"
           >
-            {saving ? "Saving…" : editingId ? "Update expense" : "Save expense"}
+            {saving ? "Saving…" : editingGroupIds ? "Update expense" : "Save expense"}
           </button>
         </form>
       )}
@@ -778,26 +860,27 @@ export default function Expenses({ initialSearch }) {
         </div>
 
         <div className="flex items-center justify-between text-[10px] text-muted px-0.5">
-          <span>{purchases.length} records</span>
+          <span>{groupedPurchases.length} records</span>
         </div>
 
         <div className="max-h-[calc(100vh-210px)] overflow-y-auto space-y-1.5 pr-0.5">
-          {purchases.map((r) => (
+          {groupedPurchases.map((r, idx) => (
             <div
-              key={r._id}
+              key={r._id || idx}
               className="bg-card border border-line rounded-md px-2.5 py-2 shadow-2xs space-y-1.5"
             >
-              {/* Primary Header Row: Item Name, Color, Category Badge, Cost & Qty */}
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 truncate">
                     <span className="font-semibold text-xs text-ink truncate">
                       {r.productName}
                     </span>
-                    {r.color && (
-                      <span className="text-[10px] text-muted shrink-0">
-                        · {r.color}
+                    {r.colorsList.length > 0 ? (
+                      <span className="text-[10px] text-muted truncate">
+                        · {r.colorsList.map((c) => `${c.color}: ${c.qty}`).join(" · ")}
                       </span>
+                    ) : (
+                      r.color && <span className="text-[10px] text-muted shrink-0">· {r.color}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -812,17 +895,14 @@ export default function Expenses({ initialSearch }) {
 
                 <div className="text-right shrink-0">
                   <div className="font-semibold text-xs font-mono text-ink">
-                    {formatMoney(r.cost)}
+                    {formatMoney(r.totalCost)}
                   </div>
-                  {r.quantity != null && (
-                    <div className="text-[10px] text-muted font-mono">
-                      Qty: {r.quantity}
-                    </div>
-                  )}
+                  <div className="text-[10px] text-muted font-mono">
+                    Qty: {r.totalQty}
+                  </div>
                 </div>
               </div>
 
-              {/* Tags Section */}
               {r.tags?.length > 0 && (
                 <div className="flex items-center gap-1 flex-wrap pt-0.5">
                   <Tag className="w-3 h-3 text-muted shrink-0" />
@@ -834,7 +914,6 @@ export default function Expenses({ initialSearch }) {
                 </div>
               )}
 
-              {/* Notes Section */}
               {r.notes && (
                 <div className="pt-0.5">
                   <span className="text-[10px] text-muted truncate block">
@@ -843,7 +922,6 @@ export default function Expenses({ initialSearch }) {
                 </div>
               )}
 
-              {/* Status Select, Date & Actions */}
               <div className="flex items-center justify-between gap-2 pt-1 border-t border-line/40">
                 <div className="flex items-center gap-2">
                   <select
@@ -870,14 +948,14 @@ export default function Expenses({ initialSearch }) {
 
                 <div className="flex items-center gap-1.5 shrink-0 text-muted">
                   <button
-                    onClick={() => startEdit(r)}
+                    onClick={() => startEditGroup(r)}
                     className="p-1 hover:text-moss-dark"
                     title="Edit expense"
                   >
                     <Pencil size={13} />
                   </button>
                   <button
-                    onClick={() => handleDelete(r._id)}
+                    onClick={() => handleDeleteGroup(r)}
                     className="p-1 hover:text-clay"
                     title="Delete expense"
                   >
@@ -888,7 +966,7 @@ export default function Expenses({ initialSearch }) {
             </div>
           ))}
 
-          {purchases.length === 0 && (
+          {groupedPurchases.length === 0 && (
             <div className="py-10 text-center text-xs text-muted">
               No expenses match your filters.
             </div>
@@ -924,13 +1002,13 @@ export default function Expenses({ initialSearch }) {
       <div className="hidden md:block w-full overflow-x-auto min-w-full">
         <DataTable
           columns={columns}
-          rows={purchases}
+          rows={groupedPurchases}
           searchValue={search}
           onSearchChange={(v) => {
             setSearch(v);
             setPage(1);
           }}
-          onRowDoubleClick={startEdit}
+          onRowDoubleClick={(r) => startEditGroup(r)}
           searchPlaceholder="Search item, supplier, or tag…"
           filters={
             <div className="flex flex-wrap items-center gap-2">

@@ -45,6 +45,7 @@ const emptyForm = {
   currentStock: 0,
   lowStockAlert: 5,
   colors: [],
+  locationStocks: [],
   stockChangeComment: "",
 };
 
@@ -115,10 +116,15 @@ export default function Inventory({ initialSearch }) {
     loadLocs();
   }, [load, loadTypes, loadLocs]);
 
-  // Clamped at 0 to prevent negative stock display issues
+  // Clamped at 0 to prevent negative stock display issues (sums all locations if locId is empty)
   const getStockForLocation = useCallback((product, locId) => {
-    if (!locId) return Math.max(0, product.currentStock || 0);
     const locStocks = product.locationStocks || [];
+    if (!locId) {
+      if (locStocks.length > 0) {
+        return Math.max(0, locStocks.reduce((sum, ls) => sum + (ls.stock || 0), 0));
+      }
+      return Math.max(0, product.currentStock || 0);
+    }
     const matches = locStocks.filter(
       (ls) => ls.location && ls.location.toString() === locId.toString()
     );
@@ -128,13 +134,19 @@ export default function Inventory({ initialSearch }) {
     return 0;
   }, []);
 
-  // Clamped at 0 to prevent negative stock display issues
+  // Clamped at 0 to prevent negative stock display issues (sums all locations if locId is empty)
   const getColorStockForLocation = useCallback((product, colorName, locId) => {
+    const locStocks = product.locationStocks || [];
     if (!locId) {
+      const matches = locStocks.filter(
+        (ls) => (ls.color || "") === (colorName || "")
+      );
+      if (matches.length > 0) {
+        return Math.max(0, matches.reduce((sum, ls) => sum + (ls.stock || 0), 0));
+      }
       const c = (product.colors || []).find((x) => x.name === colorName);
       return c ? Math.max(0, c.stock || 0) : 0;
     }
-    const locStocks = product.locationStocks || [];
     const match = locStocks.find(
       (ls) =>
         ls.location &&
@@ -284,16 +296,20 @@ export default function Inventory({ initialSearch }) {
 
   const startEdit = (p) => {
     setEditingId(p._id);
-    setOriginalStock(p.currentStock);
+    const totalStock = (p.locationStocks && p.locationStocks.length > 0)
+      ? p.locationStocks.reduce((sum, ls) => sum + (ls.stock || 0), 0)
+      : (p.currentStock || 0);
+    setOriginalStock(totalStock);
     setForm({
       name: p.name,
       sku: p.sku || "",
       type: p.type,
       retailPrice: p.retailPrice,
       costPrice: p.costPrice || "",
-      currentStock: p.currentStock,
+      currentStock: totalStock,
       lowStockAlert: p.lowStockAlert,
       colors: p.colors?.length ? p.colors.map((c) => ({ ...c })) : [],
+      locationStocks: p.locationStocks?.length ? p.locationStocks.map((ls) => ({ ...ls })) : [],
       stockChangeComment: "",
     });
     setShowForm(true);
@@ -309,6 +325,7 @@ export default function Inventory({ initialSearch }) {
 
   const addColorRow = () =>
     setForm((f) => ({ ...f, colors: [...f.colors, { name: "", stock: 0 }] }));
+  
   const updateColorRow = (i, key, value) =>
     setForm((f) => ({
       ...f,
@@ -316,8 +333,50 @@ export default function Inventory({ initialSearch }) {
         idx === i ? { ...c, [key]: value } : c,
       ),
     }));
+
   const removeColorRow = (i) =>
     setForm((f) => ({ ...f, colors: f.colors.filter((_, idx) => idx !== i) }));
+
+  const getFormLocationStock = (locId, colorName = "") => {
+    const found = (form.locationStocks || []).find(
+      (ls) =>
+        ls.location &&
+        ls.location.toString() === locId.toString() &&
+        (ls.color || "") === (colorName || "")
+    );
+    return found && found.stock !== undefined && found.stock !== null ? found.stock : "";
+  };
+
+  const updateFormLocationStock = (locId, colorName = "", stockVal) => {
+    const rawVal = stockVal === "" ? "" : Math.max(0, Number(stockVal) || 0);
+    const existing = [...(form.locationStocks || [])];
+    const index = existing.findIndex(
+      (ls) =>
+        ls.location &&
+        ls.location.toString() === locId.toString() &&
+        (ls.color || "") === (colorName || "")
+    );
+    if (index > -1) {
+      existing[index] = { ...existing[index], stock: rawVal, location: locId, color: colorName };
+    } else {
+      existing.push({ location: locId, color: colorName, stock: rawVal });
+    }
+
+    const newGlobalStock = existing.reduce((sum, ls) => sum + (Number(ls.stock) || 0), 0);
+    const updatedColors = form.colors.map((c) => {
+      const colorTotal = existing
+        .filter((ls) => (ls.color || "") === c.name)
+        .reduce((sum, ls) => sum + (Number(ls.stock) || 0), 0);
+      return { ...c, stock: colorTotal };
+    });
+
+    setForm({
+      ...form,
+      locationStocks: existing,
+      currentStock: form.colors.length > 0 ? updatedColors.reduce((s, c) => s + (Number(c.stock) || 0), 0) : newGlobalStock,
+      colors: updatedColors,
+    });
+  };
 
   const hasColors = form.colors.length > 0;
   const colorStockTotal = form.colors.reduce(
@@ -328,11 +387,33 @@ export default function Inventory({ initialSearch }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStockError(null);
-    const newStock = hasColors ? colorStockTotal : Number(form.currentStock);
+
+    let finalLocationStocks = (form.locationStocks || []).map(ls => ({
+      ...ls,
+      stock: ls.stock === "" ? 0 : Number(ls.stock) || 0
+    }));
+    const calculatedGlobalStock = hasColors ? colorStockTotal : Number(form.currentStock);
+
+    if (finalLocationStocks.length === 0 && locations.length > 0) {
+      const defaultLoc = locations.find((l) => l.isDefault) || locations[0];
+      if (hasColors) {
+        finalLocationStocks = form.colors.map((c) => ({
+          location: defaultLoc._id,
+          color: c.name,
+          stock: Number(c.stock) || 0,
+        }));
+      } else {
+        finalLocationStocks = [{
+          location: defaultLoc._id,
+          color: "",
+          stock: Number(form.currentStock) || 0,
+        }];
+      }
+    }
 
     if (
       editingId &&
-      newStock !== originalStock &&
+      calculatedGlobalStock !== originalStock &&
       !form.stockChangeComment.trim()
     ) {
       setStockError("Please explain why you're changing the stock quantity.");
@@ -346,11 +427,12 @@ export default function Inventory({ initialSearch }) {
         sku: form.sku || undefined,
         retailPrice: Number(form.retailPrice),
         costPrice: form.costPrice === "" ? 0 : Number(form.costPrice),
-        currentStock: newStock,
+        currentStock: calculatedGlobalStock,
         lowStockAlert: Number(form.lowStockAlert),
         colors: form.colors
           .filter((c) => c.name.trim())
           .map((c) => ({ name: c.name.trim(), stock: Number(c.stock) || 0 })),
+        locationStocks: finalLocationStocks,
         stockChangeComment: form.stockChangeComment.trim() || undefined,
       };
       if (editingId) {
@@ -666,7 +748,7 @@ export default function Inventory({ initialSearch }) {
               type="number"
               min="0"
               placeholder="Starting stock"
-              disabled={hasColors}
+              disabled={hasColors || locations.length > 0}
               value={hasColors ? colorStockTotal : form.currentStock}
               onChange={(e) =>
                 setForm({ ...form, currentStock: e.target.value })
@@ -725,11 +807,12 @@ export default function Inventory({ initialSearch }) {
                       type="number"
                       min="0"
                       placeholder="Stock"
+                      disabled={locations.length > 0}
                       value={c.stock}
                       onChange={(e) =>
                         updateColorRow(i, "stock", e.target.value)
                       }
-                      className="w-28 px-3 py-1.5 text-sm bg-paper rounded-md border border-line"
+                      className="w-28 px-3 py-1.5 text-sm bg-paper rounded-md border border-line disabled:opacity-50"
                     />
                     <button
                       type="button"
@@ -738,6 +821,62 @@ export default function Inventory({ initialSearch }) {
                     >
                       <Trash2 size={14} />
                     </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Stock by Location Section */}
+          <div className="border-t border-line pt-3">
+            <p className="text-xs uppercase tracking-wide text-muted mb-2">
+              Stock by Location
+            </p>
+            {locations.length === 0 ? (
+              <p className="text-xs text-muted">No locations defined yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {locations.map((loc) => (
+                  <div key={loc._id} className="bg-paper p-3 rounded-md border border-line space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-ink flex items-center gap-1.5">
+                        <MapPin size={13} className="text-muted" />
+                        {loc.name}
+                        {loc.isDefault && (
+                          <span className="text-[10px] bg-success-light text-success-dark px-1.5 py-0.5 rounded-full">
+                            Default
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    {form.colors.length === 0 ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted">Stock:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={getFormLocationStock(loc._id, "")}
+                          onChange={(e) => updateFormLocationStock(loc._id, "", e.target.value)}
+                          className="w-32 px-2.5 py-1 text-sm bg-card rounded-md border border-line font-mono"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {form.colors.map((c) => (
+                          <div key={c.name} className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-muted pl-2">• {c.name}:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={getFormLocationStock(loc._id, c.name)}
+                              onChange={(e) => updateFormLocationStock(loc._id, c.name, e.target.value)}
+                              className="w-32 px-2.5 py-1 text-sm bg-card rounded-md border border-line font-mono"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
