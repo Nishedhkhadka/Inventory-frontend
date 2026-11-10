@@ -762,7 +762,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         orderDate: orderForm.orderDate || todayStr(),
         location: orderForm.location || defaultLocation?._id,
         notes: orderForm.notes,
-        invoiceRemarks: orderForm.invoiceRemarks || undefined,
+        invoiceRemarks: orderForm.invoiceRemarks || "",
         deliveryPartner: orderForm.deliveryPartner || undefined,
       };
 

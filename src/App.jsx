@@ -83,7 +83,8 @@ function AppShell() {
         />
       )}
 
-      <main className="flex-1 min-w-0 px-4 sm:px-6 md:px-8 py-5 md:py-8 max-w-[1400px]">
+   
+<main className="flex-1 min-w-0 px-4 sm:px-6 md:px-8 py-5 md:py-8 w-full">
         <Header
           view={view}
           onNavigate={handleNavigate}
