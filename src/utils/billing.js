@@ -89,11 +89,7 @@ export function generateInvoiceHtml(group) {
     })
     .join("");
 
-  const addressLines = (profile.address || "")
-    .split(/\n|,/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    
+  const addressText = (profile.address || "").trim();
 
   return `<!DOCTYPE html>
 <html>
@@ -143,7 +139,7 @@ export function generateInvoiceHtml(group) {
 
     .company-details {
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.4;
       margin-top: 3px;
     }
 
@@ -283,7 +279,7 @@ export function generateInvoiceHtml(group) {
     .signatures {
       display: flex;
       justify-content: space-between;
-      margin-top: 55px;
+      margin-top: 45px;
     }
 
     .signature {
@@ -293,9 +289,10 @@ export function generateInvoiceHtml(group) {
       padding-top: 5px;
     }
 
+    /* FOOTER */
     .footer {
       text-align: center;
-      margin-top: 20px;
+      margin-top: 25px;
       font-size: 11px;
     }
 
@@ -341,33 +338,17 @@ export function generateInvoiceHtml(group) {
       </div>
 
       ${
-        addressLines
+        addressText
           ? `<div class="company-details">
-              ${addressLines}
+              ${addressText}
             </div>`
           : ""
       }
 
       ${
-        profile.phone
+        profile.phone || profile.email || profile.website
           ? `<div class="company-details">
-              ${profile.phone}
-            </div>`
-          : ""
-      }
-
-      ${
-        profile.email
-          ? `<div class="company-details">
-              ${profile.email}
-            </div>`
-          : ""
-      }
-
-      ${
-        profile.website
-          ? `<div class="company-details">
-              ${profile.website}
+              {[profile.phone, profile.email, profile.website].filter(Boolean).join(" | ")}
             </div>`
           : ""
       }
@@ -555,7 +536,6 @@ export function generateInvoiceHtml(group) {
       </div>
 
     </div>
-
 
     <div class="footer">
       Thank you for your business.
