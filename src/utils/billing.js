@@ -59,8 +59,6 @@ export function generateInvoiceHtml(group) {
 
   // Delivery Fee Charged to customer
   const deliveryFee = Number(group.deliveryLine?.deliveryFeeCharged) || 0;
-  const deliveryPartner = group.deliveryLine?.deliveryPartner || "—";
-
   const grandTotalValue = Math.max(0, discountedSubtotal + deliveryFee);
   const billNo = String(billSource.billNo || "").trim();
 
@@ -348,7 +346,7 @@ export function generateInvoiceHtml(group) {
       ${
         profile.phone || profile.email || profile.website
           ? `<div class="company-details">
-              {[profile.phone, profile.email, profile.website].filter(Boolean).join(" | ")}
+              ${[profile.phone, profile.email, profile.website].filter(Boolean).join(" | ")}
             </div>`
           : ""
       }
