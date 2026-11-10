@@ -7,6 +7,9 @@ export const createBatchSales = (payload) => client.post("/sales/batch", payload
 export const updateSale = (id, payload) => client.put(`/sales/${id}`, payload).then((r) => r.data);
 export const deleteSale = (id) => client.delete(`/sales/${id}`).then((r) => r.data);
 
+// Fetch change logs / audit history for a specific sale order
+export const fetchSaleLogs = (id) => client.get(`/sales/${id}/logs`).then((r) => r.data);
+
 export const salesExportUrl = (params = {}) => {
   const query = new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v))

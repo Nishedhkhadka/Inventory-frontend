@@ -6,6 +6,7 @@ import {
   updateSale,
   deleteSale,
   salesExportUrl,
+  fetchSaleLogs,
 } from "../api/sales";
 import { fetchProducts } from "../api/products";
 import { fetchLocations } from "../api/locations";
@@ -25,6 +26,7 @@ import {
   Truck,
   LucideReceiptText,
   Repeat,
+  History,
 } from "lucide-react";
 
 // Tone mappings (including Returning status for items on transit back to warehouse)
@@ -114,6 +116,13 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
   );
 
   const [deliveryMenuOpen, setDeliveryMenuOpen] = useState(false);
+
+  // ---------------------------------------------------------
+  // AUDIT LOGS MODAL STATE
+  // ---------------------------------------------------------
+  const [activeLogs, setActiveLogs] = useState([]);
+  const [logsModalOpen, setLogsModalOpen] = useState(false);
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
   // ---------------------------------------------------------
   // BULK SELECTION
@@ -263,6 +272,27 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         return createdB - createdA;
       });
   }, [sales]);
+
+  // ---------------------------------------------------------
+  // VIEW AUDIT LOGS HANDLER
+  // ---------------------------------------------------------
+
+  const handleViewLogs = async (group) => {
+    const saleId = group.primary._id;
+    if (!saleId) return;
+
+    setLoadingLogs(true);
+    setLogsModalOpen(true);
+    try {
+      const data = await fetchSaleLogs(saleId);
+      setActiveLogs(data);
+    } catch (err) {
+      alert("Failed to load audit logs");
+      setActiveLogs([]);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
 
   // ---------------------------------------------------------
   // KEEP SELECTION CLEAN
@@ -1092,6 +1122,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       header: "",
       render: (r) => (
         <div className="flex gap-2 whitespace-nowrap items-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewLogs(r);
+            }}
+            className="text-muted hover:text-ink"
+            title="View audit logs"
+          >
+            <History size={15} />
+          </button>
+
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -1941,6 +1982,17 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        handleViewLogs(r);
+                      }}
+                      className="text-muted hover:text-ink"
+                      title="View audit logs"
+                    >
+                      <History size={14} />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         handleExchange(r);
                       }}
                       className="text-muted hover:text-moss"
@@ -2113,6 +2165,63 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           emptyLabel="No sales orders match your filters."
         />
       </div>
+
+      {/* AUDIT LOGS MODAL */}
+      {logsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card border border-line rounded-lg max-w-lg w-full p-5 space-y-4 shadow-lg">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="font-display text-lg text-ink">Order Audit Logs</h3>
+              <button
+                onClick={() => setLogsModalOpen(false)}
+                className="text-muted hover:text-ink"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+              {loadingLogs ? (
+                <p className="text-center text-sm text-muted py-6">Loading logs…</p>
+              ) : activeLogs.length > 0 ? (
+                activeLogs.map((log) => (
+                  <div
+                    key={log._id}
+                    className="bg-paper border border-line rounded-md p-3 text-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between font-medium">
+                      <span className="text-moss-dark uppercase tracking-wide">
+                        {log.action}
+                      </span>
+                      <span className="text-muted">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-ink">{log.changes}</p>
+                    <p className="text-[10px] text-muted">
+                      Performed by: <span className="font-medium">{log.performedBy}</span>
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-sm text-muted py-6">
+                  No change history found for this order.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-line">
+              <button
+                type="button"
+                onClick={() => setLogsModalOpen(false)}
+                className="bg-ink text-paper text-sm px-4 py-2 rounded-md hover:bg-moss-dark transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
