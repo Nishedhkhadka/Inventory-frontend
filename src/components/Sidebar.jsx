@@ -13,11 +13,11 @@ import {
 import { useEffect, useState } from "react";
 import { DEFAULT_BUSINESS_PROFILE, getBusinessProfile } from "../utils/billing";
 
-const NAV_ITEMS = [
+// Standard navigation items visible to all users (employees)
+const STANDARD_NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutGrid },
   { key: "sales", label: "Sales orders", icon: Receipt },
   { key: "packaging", label: "Packaging", icon: PackageCheck },
-  { key: "expenses", label: "Expenses", icon: Wallet },
   { key: "inventory", label: "Inventory", icon: Package },
   { key: "contacts", label: "Contacts", icon: Building2 },
   { key: "import", label: "Import data", icon: UploadCloud },
@@ -41,9 +41,19 @@ export default function Sidebar({
     setProfile(getBusinessProfile());
   }, []);
 
+  // Conditionally include Expenses and Users only if the user is an admin
   const items = isAdmin
-    ? [...NAV_ITEMS, { key: "users", label: "Users", icon: UsersIcon }]
-    : NAV_ITEMS;
+    ? [
+        { key: "dashboard", label: "Dashboard", icon: LayoutGrid },
+        { key: "sales", label: "Sales orders", icon: Receipt },
+        { key: "packaging", label: "Packaging", icon: PackageCheck },
+        { key: "expenses", label: "Expenses", icon: Wallet },
+        { key: "inventory", label: "Inventory", icon: Package },
+        { key: "contacts", label: "Contacts", icon: Building2 },
+        { key: "import", label: "Import data", icon: UploadCloud },
+        { key: "users", label: "Users", icon: UsersIcon },
+      ]
+    : STANDARD_NAV_ITEMS;
 
   return (
     <aside
