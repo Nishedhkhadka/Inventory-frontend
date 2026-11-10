@@ -31,12 +31,10 @@ export function getBusinessProfile() {
   return cachedProfile;
 }
 
-// Pre-load profile on initialization
 loadCachedBusinessProfile();
 
 export function saveBusinessProfile(profile) {
   if (typeof window === "undefined") return;
-  // Kept for backward compatibility if called elsewhere, but now synced via API in Users.jsx
   cachedProfile = { ...DEFAULT_BUSINESS_PROFILE, ...(profile || {}) };
 }
 
@@ -503,13 +501,13 @@ export function generateInvoiceHtml(group) {
     </div>
 
 
-    <!-- NOTES / REMARKS -->
+    <!-- OPTIONAL INVOICE REMARKS -->
 
     ${
-      group.primary.notes
+      group.primary.invoiceRemarks
         ? `<div class="notes">
             <strong>Remarks:</strong>
-            ${group.primary.notes}
+            ${group.primary.invoiceRemarks}
            </div>`
         : ""
     }

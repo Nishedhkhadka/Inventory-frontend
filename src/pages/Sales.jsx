@@ -81,6 +81,7 @@ const makeEmptyOrderForm = () => ({
   orderDate: todayStr(),
   location: "",
   notes: "",
+  invoiceRemarks: "",
   deliveryPartner: "",
   deliveryFeeCharged: "",
   deliveryCost: "",
@@ -110,6 +111,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
 
   const [orderDiscount, setOrderDiscount] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [showInvoiceRemarks, setShowInvoiceRemarks] = useState(false);
 
   const [deliveryPartners, setDeliveryPartners] = useState(
     DELIVERY_PARTNER_DEFAULTS,
@@ -567,6 +570,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       orderDate: formattedDate,
       location: orderLocationId,
       notes: group.primary.notes || "",
+      invoiceRemarks: group.primary.invoiceRemarks || "",
       deliveryPartner: group.deliveryLine?.deliveryPartner || "",
       deliveryFeeCharged:
         group.deliveryLine?.deliveryFeeCharged === null ||
@@ -575,6 +579,8 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
           : group.deliveryLine.deliveryFeeCharged,
       deliveryCost: group.deliveryLine?.deliveryCost || "",
     });
+
+    setShowInvoiceRemarks(Boolean(group.primary.invoiceRemarks));
 
     setLines(
       group.lines.map((l) => ({
@@ -637,11 +643,13 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
       orderDate: todayStr(),
       location: locationId,
       notes: `exchanged item (from ${originalOrderId})`,
+      invoiceRemarks: "",
       deliveryPartner: deliveryPartner,
       deliveryFeeCharged: prevDeliveryFee > 0 ? prevDeliveryFee : "",
       deliveryCost: "",
     });
 
+    setShowInvoiceRemarks(false);
     setLines([makeEmptyLine()]);
     setOrderDiscount("");
     setShowForm(true);
@@ -658,6 +666,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
     });
     setLines([makeEmptyLine()]);
     setOrderDiscount("");
+    setShowInvoiceRemarks(false);
   };
 
   const resolveOrderId = () => {
@@ -753,6 +762,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
         orderDate: orderForm.orderDate || todayStr(),
         location: orderForm.location || defaultLocation?._id,
         notes: orderForm.notes,
+        invoiceRemarks: orderForm.invoiceRemarks || undefined,
         deliveryPartner: orderForm.deliveryPartner || undefined,
       };
 
@@ -1644,7 +1654,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <input
               placeholder="Customer name"
               value={orderForm.pointOfContact}
@@ -1670,7 +1680,7 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
             />
 
             <input
-              placeholder="Notes"
+              placeholder="Internal notes"
               value={orderForm.notes}
               onChange={(e) =>
                 setOrderForm({
@@ -1678,8 +1688,47 @@ export default function Sales({ initialSearch, openFormOnLoad }) {
                   notes: e.target.value,
                 })
               }
-              className="px-3 py-2 text-sm bg-paper rounded-md border border-line col-span-1 sm:col-span-2"
+              className="px-3 py-2 text-sm bg-paper rounded-md border border-line"
             />
+          </div>
+
+          <div>
+            {!showInvoiceRemarks ? (
+              <button
+                type="button"
+                onClick={() => setShowInvoiceRemarks(true)}
+                className="text-xs text-moss-dark hover:underline"
+              >
+                + Add invoice remarks 
+              </button>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted">Invoice remarks (prints on bill)</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInvoiceRemarks(false);
+                      setOrderForm((prev) => ({ ...prev, invoiceRemarks: "" }));
+                    }}
+                    className="text-xs text-clay hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <input
+                  placeholder="Enter remarks to print on invoice..."
+                  value={orderForm.invoiceRemarks}
+                  onChange={(e) =>
+                    setOrderForm({
+                      ...orderForm,
+                      invoiceRemarks: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 text-sm bg-paper rounded-md border border-line"
+                />
+              </div>
+            )}
           </div>
 
           <button
