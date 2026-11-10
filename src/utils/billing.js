@@ -129,15 +129,15 @@ export function generateInvoiceHtml(group) {
     }
 
     .logo {
-      width: 55px;
-      height: 55px;
+      width: 120px;
+      height: 65px;
       object-fit: contain;
-      margin-bottom: 5px;
+      margin-bottom: 1px; 
     }
 
     .company-name {
       font-size: 22px;
-      font-weight: bold;
+      font-weight: light;
       margin: 0;
     }
 
