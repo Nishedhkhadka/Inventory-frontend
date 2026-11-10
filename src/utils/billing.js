@@ -497,28 +497,14 @@ export function generateInvoiceHtml(group) {
     </div>
 
 
-    <!-- NOTES -->
+    <!-- NOTES / REMARKS -->
 
     ${
-      group.primary.notes || profile.invoiceNote
+      group.primary.notes
         ? `<div class="notes">
-
-            ${
-              group.primary.notes
-                ? `<strong>Remarks:</strong>
-                   ${group.primary.notes}`
-                : ""
-            }
-
-            ${
-              profile.invoiceNote
-                ? `<div style="margin-top: 4px;">
-                    ${profile.invoiceNote}
-                   </div>`
-                : ""
-            }
-
-          </div>`
+            <strong>Remarks:</strong>
+            ${group.primary.notes}
+           </div>`
         : ""
     }
 
@@ -538,7 +524,7 @@ export function generateInvoiceHtml(group) {
     </div>
 
     <div class="footer">
-      Thank you for your business.
+      ${profile.invoiceNote || "Thank you for your business."}
     </div>
 
   </div>
