@@ -216,9 +216,9 @@ export default function StatusPulse({ onNavigate }) {
       <style>{`
         @keyframes smoothScroll {
           0%, 10% { transform: translateX(0); }
-          90%, 100% { transform: translateX(calc(-100% + 180px)); }
+          90%, 100% { transform: translateX(calc(-100% + 110px)); }
         }
-        @media (max-width: 767px) {
+        @media (max-width: 639px) {
           .mobile-scroll-text {
             display: inline-block;
             white-space: nowrap;
@@ -227,7 +227,7 @@ export default function StatusPulse({ onNavigate }) {
           .mobile-scroll-container {
             overflow: hidden;
             display: inline-block;
-            max-width: 190px;
+            width: 100%;
           }
         }
         .apple-transition {
@@ -237,7 +237,7 @@ export default function StatusPulse({ onNavigate }) {
       <button
         type="button"
         onClick={handleClick}
-        className={`flex items-center gap-1.5 text-xs rounded-full border px-3 py-1 transition-all font-medium shadow-sm cursor-pointer hover:opacity-80 ${
+        className={`flex items-center gap-1.5 text-xs rounded-full border px-3 py-1 transition-all font-medium shadow-sm cursor-pointer hover:opacity-80 shrink-0 w-[195px] sm:w-auto ${
           attention
             ? " bg-amber-50 text-amber-700 border-amber-200"
             : "border-emerald-500 bg-emerald-50 text-emerald-900"
@@ -245,9 +245,9 @@ export default function StatusPulse({ onNavigate }) {
         title="Click to view details"
       >
         <Sparkles size={11} className="shrink-0 mb-0.5" />
-        <span className="mobile-scroll-container md:max-w-none md:overflow-visible md:truncate">
+        <span className="mobile-scroll-container sm:max-w-none sm:overflow-visible sm:truncate">
           <span
-            className={`mobile-scroll-text md:animate-none md:whitespace-normal md:truncate inline-block apple-transition ${
+            className={`mobile-scroll-text sm:animate-none sm:whitespace-normal sm:truncate inline-block apple-transition ${
               animating ? "opacity-0" : "opacity-100"
             }`}
           >
