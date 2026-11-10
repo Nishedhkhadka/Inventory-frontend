@@ -8,10 +8,10 @@ import {
 } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
 import {
-  DEFAULT_BUSINESS_PROFILE,
-  getBusinessProfile,
-  saveBusinessProfile,
-} from "../utils/billing";
+  fetchBusinessProfile,
+  saveBusinessProfileApi,
+} from "../api/businessProfile";
+import { DEFAULT_BUSINESS_PROFILE } from "../utils/billing";
 
 const emptyForm = { username: "", password: "", role: "user" };
 
@@ -22,7 +22,7 @@ export default function Users() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false); // State for saved state
+  const [saved, setSaved] = useState(false);
   const [resettingId, setResettingId] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [profile, setProfile] = useState(DEFAULT_BUSINESS_PROFILE);
@@ -31,16 +31,26 @@ export default function Users() {
     fetchUsers().then(setUsers);
   }, []);
 
-  const saveProfile = (event) => {
+  const saveProfile = async (event) => {
     event.preventDefault();
-    saveBusinessProfile(profile);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000); // Revert back after 2 seconds
+    try {
+      await saveBusinessProfileApi(profile);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      alert("Failed to save business profile to database.");
+    }
   };
 
   useEffect(() => {
     load();
-    setProfile(getBusinessProfile());
+    fetchBusinessProfile()
+      .then((data) => {
+        if (data) {
+          setProfile({ ...DEFAULT_BUSINESS_PROFILE, ...data });
+        }
+      })
+      .catch(() => {});
   }, [load]);
 
   const handleSubmit = async (e) => {

@@ -1,5 +1,6 @@
 import { formatDate, todayStr } from "./dateFmt";
 import { formatMoneyText } from "./currency";
+import { fetchBusinessProfile } from "../api/businessProfile";
 
 export const DEFAULT_BUSINESS_PROFILE = {
   companyName: "Zeno",
@@ -13,23 +14,30 @@ export const DEFAULT_BUSINESS_PROFILE = {
   invoiceNote: "",
 };
 
-export function getBusinessProfile() {
-  if (typeof window === "undefined") return { ...DEFAULT_BUSINESS_PROFILE };
+let cachedProfile = { ...DEFAULT_BUSINESS_PROFILE };
 
-  try {
-    const raw = localStorage.getItem("zeno-business-profile");
-    return { ...DEFAULT_BUSINESS_PROFILE, ...(raw ? JSON.parse(raw) : {}) };
-  } catch {
-    return { ...DEFAULT_BUSINESS_PROFILE };
-  }
+export function loadCachedBusinessProfile() {
+  fetchBusinessProfile()
+    .then((data) => {
+      if (data) {
+        cachedProfile = { ...DEFAULT_BUSINESS_PROFILE, ...data };
+      }
+    })
+    .catch(() => {});
+  return cachedProfile;
 }
+
+export function getBusinessProfile() {
+  return cachedProfile;
+}
+
+// Pre-load profile on initialization
+loadCachedBusinessProfile();
 
 export function saveBusinessProfile(profile) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(
-    "zeno-business-profile",
-    JSON.stringify({ ...DEFAULT_BUSINESS_PROFILE, ...(profile || {}) }),
-  );
+  // Kept for backward compatibility if called elsewhere, but now synced via API in Users.jsx
+  cachedProfile = { ...DEFAULT_BUSINESS_PROFILE, ...(profile || {}) };
 }
 
 // Strips sub-line suffixes
